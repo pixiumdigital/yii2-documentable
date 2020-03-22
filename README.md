@@ -41,3 +41,11 @@ use pixium\documentable\AddToCalendar;
     ]); 
 ?>
 ```
+
+## migrations
+
+```sh
+php yii migrate
+php yii migrate/up --migrationPath=@pixium/documentable/migrations
+```
+
