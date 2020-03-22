@@ -28,7 +28,7 @@ Add the package to the require list
 Run the migrations
 
 ```sh
-php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migrations --interactive=0
+php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migrations
 ```
 
 
@@ -43,7 +43,6 @@ php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migratio
   'aws' => [
     'class' => 'app\components\AWSComponent',
     's3config' => [
-      //
       'version' => 'latest',
       'region' => getenv('AWS_REGION') ?: 'default',
       'credentials' => [
@@ -59,6 +58,10 @@ php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migratio
   ]
 ],
 ```
+
+The values of `AWS_REGION`, `AWS_KEY`, `AWS_SECRET` and `AWS_ENDPOINT` should be set in `.env`
+
+
 
 ### Enable DocumentUploaderWidget
 
@@ -110,6 +113,18 @@ class MyClass extends \yii\db\ActiveRecord
 ```
 
 note the key in the behavior is the public property `images` defined above.
+
+To get a document attached to a model
+
+```php
+$model = MyClass::findOne($index);
+
+return ($doc1 = $model->getDocs('images')->one())
+  ? $doc1->getS3Url(true) // true for master, false for thumbnail
+  : Url::to('/img/feature_image_default.svg');
+```
+
+ 
 
 ### Behavior's options
 
