@@ -1,15 +1,15 @@
 <?php
-namespace pixium\documentable\behavior;
+namespace pixium\documentable\behaviors;
 
-use yii\db\ActiveRecord;
-use yii\base\Behavior;
-use pixium\documentable\models\Document;
-use pixium\documentable\models\DocumentRel;
+use \yii\db\ActiveRecord;
+use \yii\base\Behavior;
+use \pixium\documentable\models\Document;
+use \pixium\documentable\models\DocumentRel;
 
 /**
  * add to Model
  *   [
- *      'class' => \app\components\document\behaviors\DocumentableBehavior::className(),
+ *      'class' => pixium\documentable\behaviors\DocumentableBehavior::className(),
  *      'filter' => [
  *          'attribute1' => [
  *            'tag' => 'AVATAR',            // relation_type_tag in document_rel
