@@ -11,14 +11,14 @@ Add this repository to your composer.json file
         },
         {
             "type": "vcs",
-            "url": "https://github.com/pixiumdigital/yii2-widget-add-to-calendar"
+            "url": "https://github.com/pixiumdigital/yii2-documentable"
         }
     ],
 ```
 
 Add the package to the require list
 ```
-"pixium/yii2-widget-add-to-calendar": "dev-master"
+"pixium/yii2-documentable": "dev-master"
 ```
 
 You are good to go !
