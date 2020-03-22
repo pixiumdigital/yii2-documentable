@@ -1,6 +1,6 @@
 <?php
 
-namespace app\components\document\widgets;
+namespace pixium\documentable\widgets;
 
 use Yii;
 use yii\widgets\InputWidget;
