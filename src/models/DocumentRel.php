@@ -1,6 +1,6 @@
 <?php
 
-namespace pixium\widgets\models;
+namespace pixium\documentable\models;
 
 use Yii;
 
