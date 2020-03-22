@@ -27,7 +27,7 @@ You are good to go !
 ### Use It
 
 ```
-use pixium\widgets\AddToCalendar;
+use pixium\documentable\AddToCalendar;
 
 <?= AddToCalendar::widget([
         'label' => '<i class="fas fa-calendar-plus"></i>',

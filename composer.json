@@ -14,7 +14,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "pixium\\widgets\\": "src/"
+            "pixium\\documentable\\": "src/"
         }
     },
     "require": {
