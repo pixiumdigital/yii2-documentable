@@ -21,18 +21,6 @@ Add the package to the require list
 "pixium/yii2-documentable": "1.0"
 ```
 
-just tag the **release** commit 
-
-```sh
-git tag -a "1.0" -m "[new version]"
-```
-
-
-
-
-
-
-
 
 
 ## Migrations

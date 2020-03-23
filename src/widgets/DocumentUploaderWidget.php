@@ -8,6 +8,8 @@ use yii\widgets\InputWidget;
 // use yii\helpers\Html;
 // use yii\helpers\Json;
 
+require_once __DIR__ . "/../utils/functions.php";
+
 class DocumentUploaderWidget extends InputWidget
 {
     /**
@@ -113,7 +115,7 @@ class DocumentUploaderWidget extends InputWidget
         }
         // attached file should be defined as a property
         if (!($model->hasAttribute($this->attribute) || $model->hasProperty($this->attribute))) {
-            dump('model ['.$model->className()."] has no attribute [{$this->attribute}]");
+            dump('model [' . $model->className() . "] has no attribute [{$this->attribute}]");
             return;
         }
         $form = $this->field->form;
@@ -145,8 +147,10 @@ class DocumentUploaderWidget extends InputWidget
         }
 
         // get one file if kartik FileUpload expects one file only
-        if (!$acceptMultipleFiles
-        && null !== ($files = $model->{$this->attribute})) {
+        if (
+            !$acceptMultipleFiles
+            && null !== ($files = $model->{$this->attribute})
+        ) {
             $model->{$this->attribute} = array_shift($files);
         }
 
