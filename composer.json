@@ -1,5 +1,6 @@
 {
     "name": "pixium/yii2-documentable",
+    "version": "1.0.2",
     "description": "Upload and Attach documents to ActiveRecords",
     "keywords": ["yii2", "document", "s3", "upload"],
     "homepage": "https://github.com/pixiumdigital/yii2-documentable",

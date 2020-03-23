@@ -18,7 +18,7 @@ Add this repository to your composer.json file
 
 Add the package to the require list
 ```
-"pixium/yii2-documentable": "dev-master"
+"pixium/yii2-documentable": "1.0"
 ```
 
 
