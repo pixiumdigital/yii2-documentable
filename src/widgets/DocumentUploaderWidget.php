@@ -8,7 +8,7 @@ use yii\widgets\InputWidget;
 // use yii\helpers\Html;
 // use yii\helpers\Json;
 
-require_once __DIR__ . "/../utils/functions.php";
+require_once __DIR__.'/../utils/functions.php';
 
 class DocumentUploaderWidget extends InputWidget
 {
@@ -115,7 +115,7 @@ class DocumentUploaderWidget extends InputWidget
         }
         // attached file should be defined as a property
         if (!($model->hasAttribute($this->attribute) || $model->hasProperty($this->attribute))) {
-            dump('model [' . $model->className() . "] has no attribute [{$this->attribute}]");
+            dump('model ['.$model->className()."] has no attribute [{$this->attribute}]");
             return;
         }
         $form = $this->field->form;
@@ -127,7 +127,7 @@ class DocumentUploaderWidget extends InputWidget
         $overwriteFilesOnAdd = $this->replace ?? (!$acceptMultipleFiles || ($model->filter[$this->attribute]['replace'] ?? false));
         // mimiTypes accepted, file extensions accepted
         $allowedMimetypes = $this->mimetypes ?? $model->filter[$this->attribute]['mimetypes'] ?? false;
-        $maxFileSize = $allowedMimetypes = $this->maxFileSize ?? $model->filter[$this->attribute]['maxsize'] ?? param('upload_max_size', 10);
+        $maxFileSize = $allowedMimetypes = $this->maxFileSize ?? $model->filter[$this->attribute]['maxsize'] ?? Yii::$app->params['upload_max_size'] ?? 10;
         $allowedFileExtensions = $this->allowedFileExtensions ?? $model->filter[$this->attribute]['extensions'] ?? false;
         // prepare widget's initial state
         $existingDocUrls = [];
