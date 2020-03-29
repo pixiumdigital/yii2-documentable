@@ -1,11 +1,16 @@
 <?php
+
 namespace pixium\documentable\models;
 
 use Yii;
+
 // imagine to create thumbs out of images
 use \yii\imagine\Image;
 use \yii\helpers\FileHelper;
 use \yii\db\ActiveRecord;
+
+require_once __DIR__ . "/../utils/functions.php";
+
 
 // use yii]imagine\
 
@@ -111,8 +116,10 @@ class Document extends ActiveRecord
             // 'VersionId' => 'string',
         ]);
         // delete thumbnail as well if it exists
-        if ($this->url_thumb
-        && ($this->url_thumb != $this->url_master)) {
+        if (
+            $this->url_thumb
+            && ($this->url_thumb != $this->url_master)
+        ) {
             $cmd = $s3->deleteObject([
                 'Bucket' => $bucket,
                 'Key' => $this->url_thumb,
@@ -222,10 +229,17 @@ class Document extends ActiveRecord
      * Options
      * @param Array options as key => value from DocumentableBehavior
      */
-    private static function _uploadFile($filepath, $basename, $extension, $mimetype, $filesize,
-        $relId, $relType, $relTag,
-        $options)
-    {
+    private static function _uploadFile(
+        $filepath,
+        $basename,
+        $extension,
+        $mimetype,
+        $filesize,
+        $relId,
+        $relType,
+        $relTag,
+        $options
+    ) {
         $now = time();
         // filename is the base filename with extension (no path info attached)
         $filename = "{$basename}.{$extension}"; // I know it stll accepts "file."
@@ -266,7 +280,8 @@ class Document extends ActiveRecord
 
                 \yii\imagine\Image::$thumbnailBackgroundColor = '000';
                 \yii\imagine\Image::$thumbnailBackgroundAlpha = 0;
-                \yii\imagine\Image::thumbnail($filepath,
+                \yii\imagine\Image::thumbnail(
+                    $filepath,
                     $wh['width'] ?? 200,
                     $wh['height'] ?? 200,
                     //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
@@ -362,7 +377,8 @@ class Document extends ActiveRecord
         $acceptedZipTypes = ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip', 'application/x-compressed'];
         $unzip = $options['unzip'] ?? false;
         if (($unzip !== false)
-        && in_array($file->type, $acceptedZipTypes)) {
+            && in_array($file->type, $acceptedZipTypes)
+        ) {
             // unzip and if unzip is an array, use the array to filter the mimetypes to extract
             // if true extract all
             // dump(['zipped', 'file' => $file, 'options' => $options]);
@@ -382,7 +398,7 @@ class Document extends ActiveRecord
                     $filesize = $stat['size'];
                     $mimetype = mime_content_type($filepath); // text/plain
                     if (($filesize > 0)
-                    && ((true === $unzip) || (is_array($unzip) && in_array($mimetype, $unzip)))
+                        && ((true === $unzip) || (is_array($unzip) && in_array($mimetype, $unzip)))
                     ) {
                         $unzipFiles[$filepath] = [
                             // 'filepath' => $filepath,
@@ -398,8 +414,15 @@ class Document extends ActiveRecord
                     // Extractable file, (not directory)
                     $extension = pathinfo($filepath, PATHINFO_EXTENSION); // txt
                     $basename = pathinfo($filepath, PATHINFO_FILENAME); // a
-                    self::_uploadFile($filepath, $basename, $extension, $uzf['mimetype'], $uzf['filesize'], // FS
-                        $model->id, $model->tableName(), $rel_type_tag,
+                    self::_uploadFile(
+                        $filepath,
+                        $basename,
+                        $extension,
+                        $uzf['mimetype'],
+                        $uzf['filesize'], // FS
+                        $model->id,
+                        $model->tableName(),
+                        $rel_type_tag,
                         $options // options
                     );
                 }
@@ -414,8 +437,15 @@ class Document extends ActiveRecord
         }
 
         // not a zip
-        self::_uploadFile($filename, $file->baseName, $file->extension, $file->type, $file->size,
-            $model->id, $model->tableName(), $rel_type_tag,
+        self::_uploadFile(
+            $filename,
+            $file->baseName,
+            $file->extension,
+            $file->type,
+            $file->size,
+            $model->id,
+            $model->tableName(),
+            $rel_type_tag,
             $options
         );
 
