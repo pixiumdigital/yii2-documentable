@@ -153,7 +153,7 @@ class Document extends ActiveRecord
         $presignedUrl = (string) $request->getUri();
 
         //doesn't work liket this anymore
-        //$signedUrl = $s3->getObjectUrl(param('S3BucketName'), $this->url_master, '+10 minutes');
+        //$signedUrl = $s3->getObjectUrl(Yii::$app->params['S3BucketName'], $this->url_master, '+10 minutes');
         return $presignedUrl;
     }
 
