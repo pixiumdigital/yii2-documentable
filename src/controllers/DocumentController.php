@@ -9,8 +9,7 @@ use \yii\imagine\Image;
 use \yii\helpers\FileHelper;
 use \yii\db\ActiveRecord;
 
-require_once __DIR__ . "/../utils/functions.php";
-
+require_once __DIR__.'/../utils/functions.php';
 
 // use yii]imagine\
 
@@ -109,7 +108,7 @@ class Document extends ActiveRecord
     {
         // __TODO__ delete from S3
         $s3 = Yii::$app->aws->s3;
-        $bucket = param('S3BucketName');
+        $bucket = Yii::$app->params['S3BucketName'] ?? 'no-bucked-defined';
         $cmd = $s3->deleteObject([
             'Bucket' => $bucket,
             'Key' => $this->url_master,
@@ -144,7 +143,7 @@ class Document extends ActiveRecord
         $s3 = Yii::$app->aws->s3;
         //Creating a presigned URL
         $cmd = $s3->getCommand('GetObject', [
-            'Bucket' => param('S3BucketName'),
+            'Bucket' => Yii::$app->params['S3BucketName'],
             'Key' => ($s3FileId),
         ]);
 
@@ -171,7 +170,7 @@ class Document extends ActiveRecord
         $s3 = Yii::$app->aws->s3;
 
         $config = [
-            'Bucket' => param('S3BucketName'),
+            'Bucket' => Yii::$app->params['S3BucketName'],
             'Key' => ($s3FileId),
         ];
 
@@ -249,7 +248,7 @@ class Document extends ActiveRecord
 
         // put it on S3
         $s3 = Yii::$app->aws->s3;
-        $bucketOptions = ['Bucket' => param('S3BucketName')];
+        $bucketOptions = ['Bucket' => Yii::$app->params['S3BucketName']];
         // dump([
         //     // 's3endpoint' => $s3->getEndpoint(),
         //     // 's3region' => $s3->getRegion(),
@@ -264,7 +263,7 @@ class Document extends ActiveRecord
         // MASTER: resize image to get to the max allowed webapp size 'max_image_size'
         if (in_array($mimetype, ['image/jpeg', 'image/png'])) {
             // it's an image to resize!
-            $max = param('max_image_size', 1920);
+            $max = Yii::$app->params['max_image_size'] ?? 1920;
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
             \yii\imagine\Image::resize(Yii::getAlias($filepath), $max, $max)->save();
 
@@ -276,7 +275,7 @@ class Document extends ActiveRecord
                 $thumbfilename = "/tmp/{$basename}_thumb.{$extension}";
                 $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$extension}";
                 // $s3Thumbfilename = substr($s3Filename, 0, -strlen($extension))."thumb.{$extension}";
-                $wh = param('thumbnail_size');
+                $wh = Yii::$app->params['thumbnail_size'] ?? ['width' => 150, 'height' => 150];
 
                 \yii\imagine\Image::$thumbnailBackgroundColor = '000';
                 \yii\imagine\Image::$thumbnailBackgroundAlpha = 0;
