@@ -8,8 +8,6 @@ use yii\widgets\InputWidget;
 // use yii\helpers\Html;
 // use yii\helpers\Json;
 
-require_once __DIR__.'/../utils/functions.php';
-
 class DocumentUploaderWidget extends InputWidget
 {
     /**

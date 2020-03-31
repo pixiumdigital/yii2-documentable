@@ -9,8 +9,6 @@ use \yii\imagine\Image;
 use \yii\helpers\FileHelper;
 use \yii\db\ActiveRecord;
 
-require_once __DIR__.'/../utils/functions.php';
-
 // use yii]imagine\
 
 //use Imagine\Image\ManipulatorInterface;
