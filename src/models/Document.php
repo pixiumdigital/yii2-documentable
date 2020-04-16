@@ -269,13 +269,14 @@ class Document extends ActiveRecord
             if ($options['thumbnail'] ?? false) {
                 // find the extension, remove it, insert `.thumb`
                 // png, jpeg: generate thumbnail, use it
-                $thumbfilename = "/tmp/{$basename}_thumb.{$extension}";
-                $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$extension}";
+                $thumbExtension = Yii::$app->params['thumbnail_type'] ?? $extension;
+                $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
+                $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
                 // $s3Thumbfilename = substr($s3Filename, 0, -strlen($extension))."thumb.{$extension}";
                 $wh = Yii::$app->params['thumbnail_size'] ?? ['width' => 150, 'height' => 150];
 
-                \yii\imagine\Image::$thumbnailBackgroundColor = '000';
-                \yii\imagine\Image::$thumbnailBackgroundAlpha = 0;
+                \yii\imagine\Image::$thumbnailBackgroundColor = Yii::$app->params['thumbnail_background_color'] ?? '000';
+                \yii\imagine\Image::$thumbnailBackgroundAlpha = Yii::$app->params['thumbnail_background_alpha'] ?? 0;
                 \yii\imagine\Image::thumbnail(
                     $filepath,
                     $wh['width'] ?? 200,
