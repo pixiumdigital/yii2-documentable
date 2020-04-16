@@ -63,8 +63,8 @@ php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migratio
     'max_image_size' => 1920, // 1920x1920
     // thumbnail params
 		'thumbnail_size' => ['width' => 200, 'height' => 200],
-    'thumbnail_background_color' => 'FFF',
-    'thumbnail_background_alpha' => '0',
+    'thumbnail_background_color' => 'FFF', // or #AABBCC02 = RGBA
+    'thumbnail_background_alpha' => 0, // 0 to 100
     'thumbnail_type' => 'png',
   ]
 ],
