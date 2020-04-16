@@ -1,6 +1,6 @@
 <?php
 
-namespace pixium\documentable\models;
+namespace pixium\documentable\controllers;
 
 use Yii;
 
@@ -25,7 +25,7 @@ use \yii\db\ActiveRecord;
  * @property int $updated_at
  * @property int $updated_by
  */
-class Document extends ActiveRecord
+class DocumentController extends ActiveRecord
 {
     /**
      * {@inheritdoc}
