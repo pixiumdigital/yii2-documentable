@@ -55,6 +55,17 @@ php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migratio
       // <https://github.com/localstack/localstack/issues/836>
       'use_path_style_endpoint' => true,
     ]
+  ],
+  'params' => [
+    // specify bucket
+    'S3BucketName' => getenv('AWS_S3_BUCKET_NAME') ?: 'woc-bucket-test',
+    'upload_max_size' => 500, // max upload size for image in Kilobytes
+    'max_image_size' => 1920, // 1920x1920
+    // thumbnail params
+		'thumbnail_size' => ['width' => 200, 'height' => 200],
+    'thumbnail_background_color' => 'FFF',
+    'thumbnail_background_alpha' => '0',
+    'thumbnail_type' => 'png',
   ]
 ],
 ```
