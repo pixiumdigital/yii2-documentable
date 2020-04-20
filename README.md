@@ -230,3 +230,18 @@ post_max_size = 64M
 ```
 
 limit per route (API endpoint) <https://levelup.gitconnected.com/using-nginx-to-limit-file-upload-size-in-react-apps-4b2ce0e444c2>
+
+### lib zip
+
+```sh
+sudo yum install zip
+sudo yum install libzip-dev 
+```
+
+### restart all
+
+```sh
+sudo service php-fpm restart
+sudo service nginx restart
+```
+
