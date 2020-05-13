@@ -16,6 +16,13 @@ use \pixium\documentable\models\DocumentRel;
  *            'multiple' =>  false,         // true, false accept multiple uploads
  *            'replace' => false,           // force replace of existing images
  *            'thumbnail' => false,         // create thumbnails for images
+ *                  thumbnail size is defined in params [
+ *                      'thumbnail_size' => ['width' => 200, 'height' => 200, 'square' => 200, 'crop' => true],
+ *                      'thumbnail_background_color' => 'FFF',
+ *                      'thumbnail_background_alpha' => 0,
+ *                      'thumbnail_type' => 'png',
+ *                      // TODO: change thumbnail_size to documentable_thumbnail [ all in ]
+ *                  ]
  *            'unzip' => true,              // bool or 'unzip' => ['image/png', types to unzip...]
  *
  *            // For Widget only

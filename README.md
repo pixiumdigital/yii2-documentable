@@ -235,6 +235,8 @@ limit per route (API endpoint) <https://levelup.gitconnected.com/using-nginx-to-
 
 ```sh
 sudo yum install zip
+sudo install php7.2-zip
+#on debian simply php-zip
 sudo yum install libzip-dev 
 ```
 

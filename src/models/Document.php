@@ -273,16 +273,33 @@ class Document extends ActiveRecord
                 $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
                 $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
                 // $s3Thumbfilename = substr($s3Filename, 0, -strlen($extension))."thumb.{$extension}";
-                $wh = Yii::$app->params['thumbnail_size'] ?? ['width' => 150, 'height' => 150];
+                $wh = Yii::$app->params['thumbnail_size'];
+                $w = $wh['width'] ?? 150;
+                $h = $wh['height'] ?? 150;
+                // SQUARE shortcut: use 'square'=150
+                if ($xy = ($wh['square'] ?? false)) {
+                    $w = $xy;
+                    $h = $xy;
+                }
+                $fittingModel = isset($wh['crop'])
+                    ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND
+                    : \Imagine\Image\ImageInterface::THUMBNAIL_INSET;
+                // min-width / min-height
+                // if ($mw = ($wh['min_width'] ?? false)) {
+                //     // fix height EXPLORE: h=null)
+                // }
+                // if ($mh = ($wh['min_height'] ?? false)) {
+                //     // fix width (EXPLORE: w=null)
+                // }
 
                 \yii\imagine\Image::$thumbnailBackgroundColor = Yii::$app->params['thumbnail_background_color'] ?? '000';
                 \yii\imagine\Image::$thumbnailBackgroundAlpha = Yii::$app->params['thumbnail_background_alpha'] ?? 0;
                 \yii\imagine\Image::thumbnail(
                     $filepath,
-                    $wh['width'] ?? 200,
-                    $wh['height'] ?? 200,
+                    $w,
+                    $h,
                     //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
-                    \Imagine\Image\ImageInterface::THUMBNAIL_INSET // contain
+                    $fittingModel // contain
                 )->save($thumbfilename, ['quality' => 80]);
 
                 // upload to bucket
