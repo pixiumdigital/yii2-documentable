@@ -17,11 +17,18 @@ use \pixium\documentable\models\DocumentRel;
  *            'replace' => false,           // force replace of existing images
  *            'thumbnail' => false,         // create thumbnails for images
  *                  thumbnail size is defined in params [
- *                      'thumbnail_size' => ['width' => 200, 'height' => 200, 'square' => 200, 'crop' => true],
+ *                      'thumbnail_size' => [
+ *                          'width' => 200, 'height' => 200, // or...
+ *                          'square' => 200,
+ *                          'crop' => true  // crop will fit the smaller edge in the defined box
+ *                       ],
+ *
  *                      'thumbnail_background_color' => 'FFF',
  *                      'thumbnail_background_alpha' => 0,
  *                      'thumbnail_type' => 'png',
  *                      // TODO: change thumbnail_size to documentable_thumbnail [ all in ]
+ *                      // TODO: add thmubnail definition per documentable
+ *                      // make all documentable globl params as well
  *                  ]
  *            'unzip' => true,              // bool or 'unzip' => ['image/png', types to unzip...]
  *
