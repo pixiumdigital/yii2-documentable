@@ -7,6 +7,7 @@ use Yii;
 use \yii\imagine\Image;
 use \yii\helpers\FileHelper;
 use \yii\db\ActiveRecord;
+use yii\web\UploadedFile;
 
 // use yii]imagine\
 
@@ -372,6 +373,9 @@ class Document extends ActiveRecord
      * helper 1x file only
      * upload File For a given model
      * - handle zips
+     * @param UploadedFile $file
+     * @param ActiveRecord $model
+     * @param array $options
      */
     public static function uploadFileForModel($file, $model, $options = [])
     {
@@ -464,5 +468,29 @@ class Document extends ActiveRecord
         );
 
         // self::uploadFile($file, $model->id, $model->tableName(), $rel_type_tag, $options);
+    }
+
+    /**
+     * For Console uploads to bucket (and fixtures)
+     * @param string $path
+     * @param ActiveRecord $model
+     * @param array $options
+     */
+    public static function uploadFSFileForModel($path, $model, $options = [])
+    {
+        $path_parts = pathinfo($path);
+        $tempPath = "/tmp/{$path_parts['basename']}"; // use temp to avoid deletion after upload
+        copy($path, $tempPath);
+        self::_uploadFile(
+            $tempPath, // path in FS
+            $path_parts['filename'], // no path no extension
+            $path_parts['extension'],
+            FileHelper::getMimeType($path),
+            filesize($path),
+            $model->id,
+            $model->tableName(),
+            $options['tag'] ?? null,
+            $options
+        );
     }
 }//eo-class
