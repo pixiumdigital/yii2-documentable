@@ -2,6 +2,7 @@
 
 namespace pixium\documentable\models;
 
+use Exception;
 use Yii;
 // imagine to create thumbs out of images
 use \yii\imagine\Image;
@@ -27,6 +28,8 @@ use yii\web\UploadedFile;
  */
 class Document extends ActiveRecord
 {
+    const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png'];
+
     /**
      * {@inheritdoc}
      */
@@ -259,7 +262,7 @@ class Document extends ActiveRecord
         // die;
 
         // MASTER: resize image to get to the max allowed webapp size 'max_image_size'
-        if (in_array($mimetype, ['image/jpeg', 'image/png'])) {
+        if (in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
             // it's an image to resize!
             $max = Yii::$app->params['max_image_size'] ?? 1920;
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
@@ -321,6 +324,9 @@ class Document extends ActiveRecord
         } elseif ($mimetype == 'image/svg+xml') {
             // SVG MASTER = THUMBNAIL
             $s3Thumbfilename = $s3Filename;
+        } else {
+            //DBG:
+            throw new Exception("WDF: mime: {$mimetype}");
         }
 
         // MASTER - upload to s3
