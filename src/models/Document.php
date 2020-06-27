@@ -265,15 +265,18 @@ class Document extends ActiveRecord
         if (in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
             // it's an image to resize!
             $max = Yii::$app->params['max_image_size'] ?? 1920;
-            $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
+            $quality = 30; //Yii::$app->params['quality'] ?? 70; // smaller number smaller files
             $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
 
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
-            \yii\imagine\Image::resize(Yii::getAlias($filepath), $max, $max)->save(null, [
+            $path = Yii::getAlias($filepath);
+            \yii\imagine\Image::resize($path, $max, $max)->save($path, [
+                'quality' => $quality,
                 'jpeg_quality' => $quality,
                 'webp_quality' => $quality,
                 'png_compression_level' => $compression,
             ]);
+            //$filesize = filesize($path);
 
             // THUMBNAIL: (preview) generate thumbnail and $s3Thumbfilename
             // if svg, use the same file, continue
@@ -353,6 +356,8 @@ class Document extends ActiveRecord
         ]));
         // poll object until it is accessible
         $s3->waitUntil('ObjectExists', $s3FileOptions);
+        // get the size after eventual compression
+        $filesizeFinal = filesize($filepath);
         // ERASE tmp file
         FileHelper::unlink($filepath);
 
@@ -361,7 +366,7 @@ class Document extends ActiveRecord
             'url_master' => $s3Filename, // AWS S3 key for master file
             'url_thumb' => $s3Thumbfilename, // AWS S3 key for thumbnail file
             'title' => $filename,
-            'size' => $filesize, // in Bytes (save to be able to know how much data this user uses)
+            'size' => $filesizeFinal, // in Bytes (save to be able to know how much data this user uses)
         ]);
         if (!$model->save() && ($errors = $model->errors)) {
             // throw exception couldn't save document
