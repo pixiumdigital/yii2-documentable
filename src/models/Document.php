@@ -265,7 +265,7 @@ class Document extends ActiveRecord
         if (in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
             // it's an image to resize!
             $max = Yii::$app->params['max_image_size'] ?? 1920;
-            $quality = 30; //Yii::$app->params['quality'] ?? 70; // smaller number smaller files
+            $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
             $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
 
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
