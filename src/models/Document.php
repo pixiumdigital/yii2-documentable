@@ -28,7 +28,7 @@ use yii\web\UploadedFile;
  */
 class Document extends ActiveRecord
 {
-    const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png'];
+    const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp'];
 
     /**
      * {@inheritdoc}
@@ -265,8 +265,15 @@ class Document extends ActiveRecord
         if (in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
             // it's an image to resize!
             $max = Yii::$app->params['max_image_size'] ?? 1920;
+            $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
+            $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
+
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
-            \yii\imagine\Image::resize(Yii::getAlias($filepath), $max, $max)->save();
+            \yii\imagine\Image::resize(Yii::getAlias($filepath), $max, $max)->save(null, [
+                'jpeg_quality' => $quality,
+                'webp_quality' => $quality,
+                'png_compression_level' => $compression,
+            ]);
 
             // THUMBNAIL: (preview) generate thumbnail and $s3Thumbfilename
             // if svg, use the same file, continue
@@ -304,7 +311,11 @@ class Document extends ActiveRecord
                     $h,
                     //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
                     $fittingModel // contain
-                )->save($thumbfilename, ['quality' => 80]);
+                )->save($thumbfilename, [
+                    'jpeg_quality' => $quality,
+                    'webp_quality' => $quality,
+                    'png_compression_level' => $compression,
+                ]);
 
                 // upload to bucket
                 $s3FileOptions = array_merge($bucketOptions, ['Key' => $s3Thumbfilename]);
@@ -324,9 +335,9 @@ class Document extends ActiveRecord
         } elseif ($mimetype == 'image/svg+xml') {
             // SVG MASTER = THUMBNAIL
             $s3Thumbfilename = $s3Filename;
-        } else {
+            // } else {
             //DBG:
-            throw new Exception("WDF: mime: {$mimetype}");
+            //throw new Exception("WDF: mime: {$mimetype}");
         }
 
         // MASTER - upload to s3

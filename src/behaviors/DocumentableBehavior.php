@@ -22,7 +22,8 @@ use \pixium\documentable\models\DocumentRel;
  *                          'square' => 200,
  *                          'crop' => true  // crop will fit the smaller edge in the defined box
  *                       ],
- *
+ *                      'quality' => 70, 0-100 smaller generates smaller (and uglier) files used by jpg/webp
+ *                      'compression' => 7, 0-10 bigger generates smaller files. used by png
  *                      'thumbnail_background_color' => 'FFF',
  *                      'thumbnail_background_alpha' => 0,
  *                      'thumbnail_type' => 'png',
