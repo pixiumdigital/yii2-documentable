@@ -10,7 +10,6 @@ use \yii\web\NotFoundHttpException;
 use \yii\web\Controller;
 use \yii\filters\AccessRule;
 use \yii\filters\AccessControl;
-use pixium\documentable\models\DocumentRel;
 use pixium\documentable\models\Document;
 
 class DocumentController extends Controller
@@ -92,8 +91,8 @@ class DocumentController extends Controller
             $model = $this->findModel($id);
             if (!$model->delete()) {
                 // something went wrong with deleting
-                dump($model->errors);
-                die;
+                // dump($model->errors);
+                // die;
                 return ['error' => ['msg' => "Document {$id} couldn't be deleted."]];
             }
             return ['success' => true];
@@ -122,7 +121,7 @@ class DocumentController extends Controller
             && ($iBefore !== null)
             && ($iAfter !== null)) {
                 // all is set, try to get a documentRel
-                if (($model = DocumentRel::findOne($id)) !== null) {
+                if (($model = Document::findOne($id)) !== null) {
                     // found, move it
                     $model->moveFromRankTo($iBefore, $iAfter);
                     return ['success' => true];
@@ -158,7 +157,7 @@ class DocumentController extends Controller
                 return $bin; // get thumbnail
             }
         }
-        throw new NotFoundHttpException(\t('Document not found {id}', ['id' => $id]));
+        throw new NotFoundHttpException("Document not found {$id}");
     }
 
     /**
@@ -170,7 +169,7 @@ class DocumentController extends Controller
      */
     protected function findModel($id)
     {
-        if (($model = DocumentRel::findOne($id)) !== null) {
+        if (($model = Document::findOne($id)) !== null) {
             return $model;
         }
 

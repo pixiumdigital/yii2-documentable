@@ -141,6 +141,7 @@ class DocumentableBehavior extends Behavior
             ->andWhere(['rel_table' => $model->tableName()])
             ->andWhere(['rel_id' => $model->id])
             ->andWhere(['rel_type_tag' => $relTypeTag])
+            ->orderBy(['rank' => SORT_ASC])
         ;
     }
 }

@@ -136,6 +136,7 @@ class Document extends ActiveRecord
         if (!parent::beforeDelete()) {
             return false;
         }
+        return true;
         // check that there isn't any document_rel linked to this document
         // accept delete only if no relation exists
         // return empty($this->documentRel);
@@ -211,7 +212,10 @@ class Document extends ActiveRecord
             'rank_from' => $iFrom
         ];
         $tn = self::tableName();
-        $sql = "UPDATE `{$tn}` SET `rank`=`rank`{$op}1 WHERE `rel_table`=:rel_table AND `rel_id`=:rel_id AND `rank` IS NOT NULL AND `rank`>=:rank_from";
+        // guarantee we stay under 0
+        $sql = "UPDATE `{$tn}` SET `rank`=GREATEST(0, `rank`{$op}1)"
+            .' WHERE `rel_table`=:rel_table AND `rel_id`=:rel_id'
+            .' AND `rank` IS NOT NULL AND `rank`>=:rank_from';
         // extra filters
         if ($iTo !== null) {
             // add filter to rank iTo  (<= note!)
