@@ -28,6 +28,21 @@ class m202001_000003_move_doc_rel_to_document_table extends Migration
             left join document_rel dr on d.id=dr.document_id
             set d.rel_table=dr.rel_type, d.rel_id=dr.rel_id, d.`rank`=dr.`rank`, d.rel_type_tag=dr.rel_type_tag
         ')->execute();
+
+        // get rid of the old stuff
+        // drops foreign key for table `{{%document}}`
+        $this->dropForeignKey(
+            '{{%fk-document_rel-document_id}}',
+            '{{%document_rel}}'
+        );
+
+        // drops index for column `document_id`
+        $this->dropIndex(
+            '{{%idx-document_rel-document_id}}',
+            '{{%document_rel}}'
+        );
+
+        $this->dropTable('{{%document_rel}}');
     }
 
     /**
