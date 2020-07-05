@@ -1,5 +1,11 @@
 # Documentable
 
+## Important
+
+Version `2.x`comes with a change of architecture. The `DocumentRel` class was merged with  `Document`
+
+A migration is provided to update Document from DocumentRel and get rid of the rel table.
+
 ## Add to Composer
 
 Add this repository to your composer.json file
@@ -27,8 +33,16 @@ Add the package to the require list
 
 Run the migrations
 
+on Yii Basic:
+
 ```sh
-php yii migrate/up --migrationPath=@app/vendor/pixium/yii2-documentable/migrations
+php yii migrate/up -p @app/vendor/pixium/yii2-documentable/migrations
+```
+
+on Yii advanced:
+
+```
+php yii migrate/up -p vendor/pixium/yii2-documentable/migrations
 ```
 
 
