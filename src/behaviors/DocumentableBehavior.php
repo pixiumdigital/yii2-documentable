@@ -1,10 +1,10 @@
 <?php
 namespace pixium\documentable\behaviors;
 
+use Exception;
 use \yii\db\ActiveRecord;
 use \yii\base\Behavior;
 use \pixium\documentable\models\Document;
-use \pixium\documentable\models\DocumentRel;
 
 /**
  * add to Model
@@ -118,10 +118,10 @@ class DocumentableBehavior extends Behavior
     public function afterDelete()
     {
         $model = $this->owner;
-        $docrels = DocumentRel::findAll(['rel_type' => $model->tableName(), 'rel_id' => $model->id]);
-        foreach ($docrels as $docrel) {
+        $docs = Document::findAll(['rel_table' => $model->tableName(), 'rel_id' => $model->id]);
+        foreach ($docs as $doc) {
             // DocumentRel->delete() cascades delete to Document.
-            $docrel->delete();
+            $doc->delete();
         }
     }
 
@@ -135,32 +135,12 @@ class DocumentableBehavior extends Behavior
     public function getDocs($prop = null)
     {
         $model = $this->owner;
-        $rel_type_tag = $this->filter[$prop]['tag'] ?? null;
-        $subquery = DocumentRel::find()
-            ->select(['document_id'])
-            ->where(['rel_type' => $model->tableSchema->name])
-            ->andWhere(['rel_id' => $model->id])
-            ->andFilterWhere(['rel_type_tag' => $rel_type_tag]);
+        $relTypeTag = $this->filter[$prop]['tag'] ?? null;
+        // throw new Exception('table:'.$model->tableName()." - prop:{$prop} => {$relTypeTag}");
         return Document::find()
-            ->where(['id' => $subquery]);
-    }
-
-    // simplify
-    /**
-     * get DocumentRel attached to this model with tag issued by given property name
-     * [DevNote] no point use hasMany as the property is usually given so there
-     *   will only rarely be a call like $model->docRels;
-     * @param string $prop property name
-     * @return ActiveQuery array of DocumentRels
-     */
-    public function getDocRels($prop = null)
-    {
-        $model = $this->owner;
-        $rel_type_tag = $this->filter[$prop]['tag'] ?? null;
-        //  if an attribute is given and it has a rel_type_tag, filter by it
-        return DocumentRel::find()
-            ->where(['rel_type' => $model->tableSchema->name])
+            ->andWhere(['rel_table' => $model->tableName()])
             ->andWhere(['rel_id' => $model->id])
-            ->andFilterWhere(['rel_type_tag' => $rel_type_tag]);
+            ->andWhere(['rel_type_tag' => $relTypeTag])
+        ;
     }
 }
