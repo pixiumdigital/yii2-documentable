@@ -147,6 +147,11 @@ $model = MyClass::findOne($index);
 return ($doc1 = $model->getDocs('images')->one())
   ? $doc1->getS3Url(true) // true for master, false for thumbnail
   : Url::to('/img/feature_image_default.svg');
+
+foreach ($model->getDocs('images')->all() as $doc) {
+  echo Html::img($doc->getS3Url(true));
+}
+
 ```
 
  

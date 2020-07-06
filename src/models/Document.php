@@ -245,6 +245,8 @@ class Document extends ActiveRecord
     //=== AWS S3
     /**
      * get presigned url valid for the next 10 minutes
+     * @param bool $returnsMaster true for master | false for thumbnail
+     * @return ???
      */
     public function getS3Url($returnsMaster = true)
     {
@@ -252,10 +254,10 @@ class Document extends ActiveRecord
         if ($s3FileId == null) {
             return null;
         }
-        $s3 = Yii::$app->aws->s3;
+        $s3 = \Yii::$app->aws->s3;
         //Creating a presigned URL
         $cmd = $s3->getCommand('GetObject', [
-            'Bucket' => Yii::$app->params['S3BucketName'],
+            'Bucket' => \Yii::$app->params['S3BucketName'],
             'Key' => ($s3FileId),
         ]);
 
