@@ -196,11 +196,11 @@ class DocumentUploaderWidget extends InputWidget
         }
 
         // Render Widget (accept multiple widgets)
-        echo $form->field($model, "{$this->attribute}", ['options' => ['class' => $formFieldClasses]])
+        echo $form->field($model, "{$this->attribute}".($acceptMultipleFiles ? '[]' : ''), ['options' => ['class' => $formFieldClasses]])
             ->widget(\kartik\file\FileInput::classname(), $options)
             ->label(false);
         //DBG
-        dump(['attribute used' => $this->attribute]);
-        // dump(['existingDocUrls' => $existingDocUrls]);
+        //dump(['attribute used' => $this->attribute]);
+        //dump(['existingDocUrls' => $existingDocUrls]);
     }
 }
