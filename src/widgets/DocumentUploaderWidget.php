@@ -140,6 +140,7 @@ class DocumentUploaderWidget extends InputWidget
                 'key' => $doc->id, // pass the id of the document_rel to delete
                 'caption' => $doc->title,
                 'size' => $doc->size,
+                'downloadUrl' => $doc->getS3Url(true)
             ]);
         }
 
@@ -170,6 +171,7 @@ class DocumentUploaderWidget extends InputWidget
                 // pass other config elements (caption, size, key, download-url...)
                 // <http://demos.krajee.com/widget-details/fileinput>
                 'initialPreviewConfig' => $existingDocConfigs,
+                'initialPreviewDownloadUrl' => $existingDocUrls,
                 // 'initialCaption' => 'The Moon and the Earth',
                 // 'initialPreviewConfig' => [
                 //     ['key' => 17, 'caption' => 'Moon.jpg', 'size' => '873727'],
