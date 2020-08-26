@@ -29,6 +29,34 @@ Add the package to the require list
 
 
 
+## Add to console.php / main.php
+
+add this to the config
+
+```
+'controllerMap' => [
+  'migrate'=>[
+    'class'=>'yii\console\controllers\MigrateController',
+    'migrationLookup'=>[
+      '@vendor/pixium/yii2-documentable/migrations',
+      '@app/migrations'
+      // add other migration path here
+    ]
+  ]
+],
+
+```
+
+
+
+
+
+
+
+
+
+
+
 ## Migrations
 
 Run the migrations
@@ -95,7 +123,7 @@ you'll need to add a custom controller to the controller map to make calls to `/
 ```sh
 // add custom controller route to have the whole Document module as a bundle
 'controllerMap' => [
-'document' => 'pixium\documentable\controllers\DocumentRelController',
+'document' => 'pixium\documentable\controllers\DocumentController',
 ],
 ```
 

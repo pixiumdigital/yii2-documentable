@@ -5,6 +5,7 @@ use Exception;
 use \yii\db\ActiveRecord;
 use \yii\base\Behavior;
 use \pixium\documentable\models\Document;
+use yii\helpers\Html;
 
 /**
  * add to Model
@@ -143,5 +144,24 @@ class DocumentableBehavior extends Behavior
             ->andWhere(['rel_type_tag' => $relTypeTag])
             ->orderBy(['rank' => SORT_ASC])
         ;
+    }
+
+    /**
+     * @param string $prop property name
+     * @param array $options html options for img tag
+     * @param string $default tag generated if no image is available
+     */
+    public function getThumbnail($prop, $options = [], $default = null)
+    {
+        $options['class'] = 'thumbnail '.($options['class'] ?? '');
+        if (null !== ($doc1 = $this->getDocs($prop)->one())) {
+            // get thumbnail url
+            if (null !== ($url = $doc1->getS3Url(false))) {
+                return Html::img($url, $options);
+            }
+        }
+        return (null === $default)
+            ? '<div class="'.$options['class'].'"><i class="fa fa-file-image-o fa-3x" aria-hidden="true"></i></div>'
+            : $default;
     }
 }
