@@ -44,8 +44,8 @@ class Document extends ActiveRecord
     public function behaviors()
     {
         return [
-            ['class' => \yii\behaviors\TimestampBehavior::className()],
-            ['class' => \yii\behaviors\BlameableBehavior::className()],
+            ['class' => \yii\behaviors\TimestampBehavior::class],
+            ['class' => \yii\behaviors\BlameableBehavior::class],
         ];
     }
 
@@ -297,32 +297,19 @@ class Document extends ActiveRecord
     }
 
     /**
-     * delete all Documents and DocumentRels linked to a model
-     * by
-     * @param integer relId id of model linked to
-     * @param string relType type of rel ('article')
-     * @param string relTag // don't give it and it destroys everything!
+     *
      */
-    public static function deleteAllRelTo($relId, $relType, $relTag = null)
+    public static function deleteForModel($model, $options = [])
     {
         $rels = Document::find()
-            ->where(['rel_id' => $relId])
-            ->andWhere(['rel_table' => $relType])
-            ->andFilterWhere(['rel_type_tag' => $relTag])
+            ->where(['rel_id' => $model->id])
+            ->andWhere(['rel_table' => $model->tableName()])
+            ->andFilterWhere(['rel_type_tag' => $options['tag'] ?? null])
             ->all();
         foreach ($rels as $rel) {
             // delete each DocumentRel, and Document if no Rel is attached to it
             $res = $rel->delete();
         }
-    }
-
-    /**
-     *
-     */
-    public static function deleteForModel($model, $options = [])
-    {
-        $rel_type_tag = $options['tag'] ?? null;
-        self::deleteAllRelTo($model->id, $model->tableName(), $rel_type_tag);
     }
 
     /**
@@ -604,7 +591,9 @@ class Document extends ActiveRecord
     {
         $path_parts = pathinfo($path);
         $tempPath = "/tmp/{$path_parts['basename']}"; // use temp to avoid deletion after upload
-        copy($path, $tempPath);
+        if ($path !== $tempPath) {
+            copy($path, $tempPath);
+        }
         self::_uploadFile(
             $tempPath, // path in FS
             $path_parts['filename'], // no path no extension
