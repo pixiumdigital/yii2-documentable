@@ -20,6 +20,10 @@ class m202001_000001_create_document_table extends Migration
 
         $this->createTable('{{%document}}', [
             'id' => $this->primaryKey(),
+            'rel_id', $this->integer()->notNull()->after('id')),
+            'rel_table', $this->string(64)->notNull()->after('id')),
+            'rel_type_tag', $this->string(64)->after('rel_id')),
+            'rank', $this->integer()->notNull()->defaultValue(0)->after('rel_type_tag')),
             'title' => $this->string(255)->notNull(),
             'url_thumb' => $this->string(250),
             'url_master' => $this->string(255)->notNull(),
@@ -30,6 +34,8 @@ class m202001_000001_create_document_table extends Migration
             'updated_by' => $this->integer(),
         ], $tableOptions);
     }
+
+
 
     /**
      * {@inheritdoc}
