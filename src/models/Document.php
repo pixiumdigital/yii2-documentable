@@ -25,6 +25,7 @@ use yii\web\UploadedFile;
  * @property int $created_by
  * @property int $updated_at
  * @property int $updated_by
+ * @property int $copy_group
  */
 class Document extends ActiveRecord
 {
@@ -56,7 +57,7 @@ class Document extends ActiveRecord
     {
         return [
             [['title', 'url_master', 'rel_table', 'rel_id'], 'required'],
-            [['size', 'rank', 'rel_id', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['size', 'rank', 'rel_id', 'copy_group', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
             [['rel_table', 'rel_type_tag'], 'string'],
             [['title', 'url_master', 'url_thumb'], 'string', 'max' => 255],
         ];
@@ -153,25 +154,32 @@ class Document extends ActiveRecord
             // decrease all ranks higher than the current one by 1
             $this->moveFromRankTo($this->rank);
         }
-
-        // __TODO__ delete from S3
-        $s3 = Yii::$app->aws->s3;
-        $bucket = Yii::$app->params['S3BucketName'] ?? 'no-bucket-specified';
-        $cmd = $s3->deleteObject([
-            'Bucket' => $bucket,
-            'Key' => $this->url_master,
-            // 'VersionId' => 'string',
-        ]);
-        // delete thumbnail as well if it exists
-        if (
-            $this->url_thumb
-            && ($this->url_thumb != $this->url_master)
-        ) {
+        // if a copy, reduce the number of copies
+        $copyNb = (null == $this->copy_group) ? 1 : self::find()->where(['copy_group' => $this->copy_group])->count();
+        switch ($copyNb) {
+        case 2: // remove last copy of original
+            $this->updateAll(['copy_group' => null], ['copy_group' => $this->copy_group]);
+            break;
+        case 1: // removing original
+            // delete from S3
+            $s3 = Yii::$app->aws->s3;
+            $bucket = Yii::$app->params['S3BucketName'] ?? 'no-bucket-specified';
             $cmd = $s3->deleteObject([
                 'Bucket' => $bucket,
-                'Key' => $this->url_thumb,
+                'Key' => $this->url_master,
                 // 'VersionId' => 'string',
             ]);
+            // delete thumbnail as well if it exists
+            if ($this->url_thumb
+            && ($this->url_thumb != $this->url_master)) {
+                $cmd = $s3->deleteObject([
+                    'Bucket' => $bucket,
+                    'Key' => $this->url_thumb,
+                    // 'VersionId' => 'string',
+                ]);
+            }
+            break;
+        default:
         }
 
         // remove DB record
@@ -345,6 +353,7 @@ class Document extends ActiveRecord
         $filename = "{$basename}.{$extension}"; // I know it stll accepts "file."
         $hash = substr(md5("{$filename}{$now}"), 0, 8);
         $s3Filename = "{$hash}-{$filename}";
+
         $s3Thumbfilename = null;
 
         // put it on S3
@@ -386,7 +395,6 @@ class Document extends ActiveRecord
                 $thumbExtension = Yii::$app->params['thumbnail_type'] ?? $extension;
                 $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
                 $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
-                // $s3Thumbfilename = substr($s3Filename, 0, -strlen($extension))."thumb.{$extension}";
                 $wh = Yii::$app->params['thumbnail_size'];
                 $w = $wh['width'] ?? 150;
                 $h = $wh['height'] ?? 150;
@@ -605,5 +613,32 @@ class Document extends ActiveRecord
             $options['tag'] ?? null,
             $options
         );
+    }
+
+    /**
+     * copy to model
+     * <https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectUsingPHP.html>
+     * @param ActiveRecord $model
+     * @param String $attribute name
+     */
+    public function copyToModel($model, $attribute = null)
+    {
+        //if $model
+
+        if ($model->hasMethod('getDocs')) {
+            if (null == $this->copy_group) {
+                $this->copy_group = $this->id;
+                $this->save(false);
+            }
+            $newDoc = clone $this;
+            $newDoc->rel_table = $model->tableName();
+            $newDoc->rel_id = $model->id;
+            $newDoc->id = null;
+            $newDoc->isNewRecord = true;
+            $newDoc->copy_group = $this->copy_group; // copy the group
+            $newDoc->save(false);
+            return $newDoc;
+        }
+        return null;
     }
 }//eo-class
