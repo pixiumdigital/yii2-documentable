@@ -2,9 +2,17 @@
 
 ## Important
 
+### Release v2.x
+
 Version `2.x`comes with a change of architecture. The `DocumentRel` class was merged with  `Document`
 
 A migration is provided to update Document from DocumentRel and get rid of the rel table.
+
+### Release v3.x
+
+Version 3 introduces some simplifactons, removeing the red_type_tag an dusing the attribute name instead.
+
+
 
 ## Add to Composer
 
