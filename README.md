@@ -8,10 +8,6 @@ Version `2.x`comes with a change of architecture. The `DocumentRel` class was me
 
 A migration is provided to update Document from DocumentRel and get rid of the rel table.
 
-### Release v3.x
-
-Version 3 introduces some simplifactons, removeing the red_type_tag an dusing the attribute name instead.
-
 
 
 ## Add to Composer
@@ -57,15 +53,7 @@ add this to the config
 
 
 
-
-
-
-
-
-
-
-
-## Migrations
+## Migrations (manual)
 
 Run the migrations
 
@@ -135,7 +123,7 @@ you'll need to add a custom controller to the controller map to make calls to `/
 ],
 ```
 
-this is critical to be able to delete documents from the DocumentUploaderWidget. 
+this is critical to be able to **delete** documents from the DocumentUploaderWidget. 
 
 
 
@@ -156,9 +144,9 @@ class MyClass extends \yii\db\ActiveRecord
       [ // Documentable Behavior allows attachment of documents to current model
         'class' => DocumentableBehavior::className(),
         'filter' => [
-          'images' => [
-            'tag' => 'MYCLASS_IMAGE',
-            'unzip' => false,
+          'images' => [ // this is the default 'tag' since v2.2.1
+            //'tag' => 'MYCLASS_IMAGE', // optional now
+            //'unzip' => false,
             'multiple' => true,
 						'replace' => false,
             'thumbnail' => true,
@@ -194,7 +182,7 @@ foreach ($model->getDocs('images')->all() as $doc) {
 
 ### Behavior's options
 
-- `tag` the name that identifies the relationship between a Document and the Owning model. ('AVATAR_IMAGE', 'RESUME', 'COMIC_PAGE'…)
+- `tag` the name that identifies the relationship between a Document and the Owning model. ('AVATAR_IMAGE', 'RESUME', 'COMIC_PAGE'…). As mentioned above, optional since `v2.2.1` the attribute name will be used instead.
 - `unzip` a boolean/string to process zip files. If set to true/NAME, each file extracted will be attached instead of the zip itself.
 - `multiple` a boolean to specify whether multiple Documents can be attached under the given tag.
 - `replace` a boolean to specify the default `multiple` behavior when adding new files.

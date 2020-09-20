@@ -384,6 +384,7 @@ class Document extends ActiveRecord
 
             $image = \yii\imagine\Image::resize($path, $max, $max);
             // handle EXIF rotation
+            // <https://github.com/yiisoft/yii2-imagine/issues/44> based on Samdark's comment
             if (!empty($exif['Orientation'])) {
                 switch ($exif['Orientation']) {
                     case 3:
