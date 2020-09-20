@@ -380,7 +380,25 @@ class Document extends ActiveRecord
 
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
             $path = Yii::getAlias($filepath);
-            \yii\imagine\Image::resize($path, $max, $max)->save($path, [
+            $exif = exif_read_data($path);
+
+            $image = \yii\imagine\Image::resize($path, $max, $max);
+            // handle EXIF rotation
+            if (!empty($exif['Orientation'])) {
+                switch ($exif['Orientation']) {
+                    case 3:
+                        $image->rotate(180);
+                        break;
+                    case 6:
+                        $image->rotate(90);
+                        break;
+
+                    case 8:
+                        $image->rotate(-90);
+                        break;
+                }
+            }
+            $image->save($path, [
                 'quality' => $quality,
                 'jpeg_quality' => $quality,
                 'webp_quality' => $quality,
