@@ -3,6 +3,7 @@
 namespace pixium\documentable\models;
 
 use Exception;
+use pixium\documentable\DocumentableException;
 use Yii;
 // imagine to create thumbs out of images
 use \yii\imagine\Image;
@@ -591,6 +592,7 @@ class Document extends ActiveRecord
 
     /**
      * For Console uploads to bucket (and fixtures)
+     * @see DocumentableBehavior::uploadFile()
      * @param string $path
      * @param ActiveRecord $model
      * @param array $options
@@ -616,29 +618,26 @@ class Document extends ActiveRecord
     }
 
     /**
-     * copy to model
-     * <https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectUsingPHP.html>
+     * copy to model (to use S3 copy see <https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectUsingPHP.html>)
+     * this fucntion allows copying to non Documentable models, @see DocumentableBehavior::copyDocs()
      * @param ActiveRecord $model
      * @param String $attribute name
      */
     public function copyToModel($model, $attribute = null)
     {
         //if $model
-
-        if ($model->hasMethod('getDocs')) {
-            if (null == $this->copy_group) {
-                $this->copy_group = $this->id;
-                $this->save(false);
-            }
-            $newDoc = clone $this;
-            $newDoc->rel_table = $model->tableName();
-            $newDoc->rel_id = $model->id;
-            $newDoc->id = null;
-            $newDoc->isNewRecord = true;
-            $newDoc->copy_group = $this->copy_group; // copy the group
-            $newDoc->save(false);
-            return $newDoc;
+        if (null == $this->copy_group) {
+            $this->copy_group = $this->id;
+            $this->save(false);
         }
-        return null;
+        $newDoc = clone $this;
+        $newDoc->rel_type_tag = $attribute ?? $this->rel_type_tag;
+        $newDoc->rel_table = $model->tableName();
+        $newDoc->rel_id = $model->id;
+        $newDoc->id = null;
+        $newDoc->isNewRecord = true;
+        $newDoc->copy_group = $this->copy_group; // copy the group
+        $newDoc->save(false);
+        return $newDoc;
     }
 }//eo-class

@@ -1,7 +1,7 @@
 <?php
 namespace pixium\documentable\behaviors;
 
-use Exception;
+use pixium\documentable\DocumentableException;
 use \yii\db\ActiveRecord;
 use \yii\base\Behavior;
 use \pixium\documentable\models\Document;
@@ -133,10 +133,10 @@ class DocumentableBehavior extends Behavior
      * @param string $prop property name
      * @return ActiveQuery array of DocumentRels
      */
-    public function getDocs($prop = null)
+    public function getDocs($attribute = null)
     {
         $model = $this->owner;
-        $relTypeTag = $this->filter[$prop]['tag'] ?? null;
+        $relTypeTag = $this->filter[$attribute]['tag'] ?? $attribute ?? null;
         // throw new Exception('table:'.$model->tableName()." - prop:{$prop} => {$relTypeTag}");
         return Document::find()
             ->andWhere(['rel_table' => $model->tableName()])
@@ -163,5 +163,43 @@ class DocumentableBehavior extends Behavior
         return (null === $default)
             ? '<div class="'.$options['class'].'"><i class="fa fa-file-image-o fa-3x" aria-hidden="true"></i></div>'
             : $default;
+    }
+
+    /**
+     * copy docs associated with one attribute to a given model
+     * @param string $attribute
+     * @param ActiveRecord $model target model to copy to
+     * @throws DocumentableException
+     */
+    public function copyDocs($attribute, $model)
+    {
+        if (!$model->hasMethod('getDocs')) {
+            throw new DocumentableException(DocumentableException::DEXC_NOT_DOCUMENTABLE, 'Target object is not a Documentable');
+        }
+
+        $docs = $this->getDocs($attribute)->all();
+        foreach ($docs as $doc) {
+            /** @var Document $doc */
+            $doc->copyToModel($model, $attribute);
+        }
+    }
+
+    /**
+     * upload a file to a Documentable model
+     * @param string $attribute on which the filemust be attached
+     * @param string $path to upload
+     * @throws DocumentableException
+     */
+    public function uploadFile($attribute, $path)
+    {
+        $model = $this->owner;
+        $options = $this->filter[$attribute] ?? null;
+        // ensure attribute is used if no specific tag is defined
+        $options['tag'] = $options['tag'] ?? $attribute;
+        if (null == $options) {
+            throw new DocumentableException(DocumentableException::DEXC_NO_SUCH_ATTRIBUTE, "No Such Attribute: [{$attribute}]");
+        }
+        // upload file to owner moeel
+        Document::uploadFSFileForModel($path, $model, $options);
     }
 }
