@@ -380,13 +380,12 @@ class Document extends ActiveRecord
 
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
             $path = Yii::getAlias($filepath);
-            $exif = exif_read_data($path);
-
             $image = \yii\imagine\Image::resize($path, $max, $max);
-            // handle EXIF rotation
-            // <https://github.com/yiisoft/yii2-imagine/issues/44> based on Samdark's comment
-            if (!empty($exif['Orientation'])) {
-                switch ($exif['Orientation']) {
+            try {
+                $exif = exif_read_data($path);
+                // handle EXIF rotation
+                if (!empty($exif['Orientation'])) {
+                    switch ($exif['Orientation']) {
                     case 3:
                         $image->rotate(180);
                         break;
@@ -397,7 +396,10 @@ class Document extends ActiveRecord
                     case 8:
                         $image->rotate(-90);
                         break;
+                    }
                 }
+            } catch (Exception $e) {
+                // don't reorientate
             }
             $image->save($path, [
                 'quality' => $quality,

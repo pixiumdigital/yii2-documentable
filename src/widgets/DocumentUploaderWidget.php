@@ -149,7 +149,7 @@ class DocumentUploaderWidget extends InputWidget
             !$acceptMultipleFiles
             && null !== ($files = $model->{$this->attribute})
         ) {
-            $model->{$this->attribute} = array_shift($files);
+            $model->{$this->attribute} = is_array($files) ? array_shift($files) : $files;
         }
 
         $options = [
