@@ -87,6 +87,10 @@ class DocumentableBehavior extends Behavior
             // do it here not in the controllers.... simplifies the flow
             $files = \yii\web\UploadedFile::getInstances($model, $prop);
             $model->{$prop} = $files;
+            // use property if no tag defined
+            if (!isset($options['tag'])) {
+                $options['tag'] = $prop;
+            }
 
             // process this property
             $multiple = $options['multiple'] ?? false;
