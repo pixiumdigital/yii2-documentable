@@ -23,6 +23,14 @@ class m202001_000003_move_doc_rel_to_document_table extends Migration
         // raw update without using the DocumentRel class
 
         $connection = $this->getDb();
+
+        // clean erroneous singletons
+        $connection->createCommand('
+            delete from document d
+            where d.`id` not in (select document_id from document_rel); 
+        ')->execute();
+
+        // relink
         $connection->createCommand('
             update `document` d
             left join document_rel dr on d.id=dr.document_id
