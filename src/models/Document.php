@@ -31,6 +31,7 @@ use yii\web\UploadedFile;
 class Document extends ActiveRecord
 {
     const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const RESIZABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp'];
 
     /**
      * {@inheritdoc}
@@ -372,11 +373,12 @@ class Document extends ActiveRecord
         // die;
 
         // MASTER: resize image to get to the max allowed webapp size 'max_image_size'
-        if (in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
+        $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
+        $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
+
+        if (in_array($mimetype, self::RESIZABLE_MIMETYPES)) {
             // it's an image to resize!
             $max = Yii::$app->params['max_image_size'] ?? 1920;
-            $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
-            $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
 
             //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
             $path = Yii::getAlias($filepath);
@@ -384,23 +386,22 @@ class Document extends ActiveRecord
             try {
                 $exif = exif_read_data($path);
                 // handle EXIF rotation
-                if (!empty($exif['Orientation'])) {
-                    switch ($exif['Orientation']) {
-                    case 3:
-                        $image->rotate(180);
-                        break;
-                    case 6:
-                        $image->rotate(90);
-                        break;
-
-                    case 8:
-                        $image->rotate(-90);
-                        break;
-                    }
+                switch ($exif['Orientation'] ?? 0) {
+                case 3:
+                    $image->rotate(180);
+                    break;
+                case 6:
+                    $image->rotate(90);
+                    break;
+                case 8:
+                    $image->rotate(-90);
+                    break;
+                default:
                 }
             } catch (Exception $e) {
                 // don't reorientate
             }
+            // save image to $filePath
             $image->save($path, [
                 'quality' => $quality,
                 'jpeg_quality' => $quality,
@@ -408,69 +409,67 @@ class Document extends ActiveRecord
                 'png_compression_level' => $compression,
             ]);
             //$filesize = filesize($path);
+        }
 
-            // THUMBNAIL: (preview) generate thumbnail and $s3Thumbfilename
-            // if svg, use the same file, continue
-            if ($options['thumbnail'] ?? false) {
-                // find the extension, remove it, insert `.thumb`
-                // png, jpeg: generate thumbnail, use it
-                $thumbExtension = Yii::$app->params['thumbnail_type'] ?? $extension;
-                $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
-                $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
-                $wh = Yii::$app->params['thumbnail_size'];
-                $w = $wh['width'] ?? 150;
-                $h = $wh['height'] ?? 150;
-                // SQUARE shortcut: use 'square'=150
-                if ($xy = ($wh['square'] ?? false)) {
-                    $w = $xy;
-                    $h = $xy;
-                }
-                $fittingModel = isset($wh['crop'])
-                    ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND
-                    : \Imagine\Image\ImageInterface::THUMBNAIL_INSET;
-                // min-width / min-height
-                // if ($mw = ($wh['min_width'] ?? false)) {
-                //     // fix height EXPLORE: h=null)
-                // }
-                // if ($mh = ($wh['min_height'] ?? false)) {
-                //     // fix width (EXPLORE: w=null)
-                // }
-
-                \yii\imagine\Image::$thumbnailBackgroundColor = Yii::$app->params['thumbnail_background_color'] ?? '000';
-                \yii\imagine\Image::$thumbnailBackgroundAlpha = Yii::$app->params['thumbnail_background_alpha'] ?? 0;
-                \yii\imagine\Image::thumbnail(
-                    $filepath,
-                    $w,
-                    $h,
-                    //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
-                    $fittingModel // contain
-                )->save($thumbfilename, [
-                    'jpeg_quality' => $quality,
-                    'webp_quality' => $quality,
-                    'png_compression_level' => $compression,
-                ]);
-
-                // upload to bucket
-                $s3FileOptions = array_merge($bucketOptions, ['Key' => $s3Thumbfilename]);
-                $result = $s3->putObject(array_merge($s3FileOptions, [
-                    'SourceFile' => $thumbfilename,
-                    // needed for SVGs
-                    'ContentType' => $mimetype,
-                    'Metadata' => [
-                        'version' => '1.0.0'
-                    ]
-                ]));
-                // poll object until it is accessible
-                $s3->waitUntil('ObjectExists', $s3FileOptions);
-                // ERASE tmp thumbnail file
-                FileHelper::unlink($thumbfilename);
+        // THUMBNAIL: (preview) generate thumbnail and $s3Thumbfilename
+        // if svg, use the same file, continue
+        if (($options['thumbnail'] ?? false)
+        && in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
+            // find the extension, remove it, insert `.thumb`
+            // png, jpeg: generate thumbnail, use it
+            $thumbExtension = Yii::$app->params['thumbnail_type'] ?? $extension;
+            $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
+            $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
+            $wh = Yii::$app->params['thumbnail_size'];
+            $w = $wh['width'] ?? 150;
+            $h = $wh['height'] ?? 150;
+            // SQUARE shortcut: use 'square'=150
+            if ($xy = ($wh['square'] ?? false)) {
+                $w = $xy;
+                $h = $xy;
             }
+            $fittingModel = isset($wh['crop'])
+                ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND
+                : \Imagine\Image\ImageInterface::THUMBNAIL_INSET;
+            // min-width / min-height
+            // if ($mw = ($wh['min_width'] ?? false)) {
+            //     // fix height EXPLORE: h=null)
+            // }
+            // if ($mh = ($wh['min_height'] ?? false)) {
+            //     // fix width (EXPLORE: w=null)
+            // }
+
+            \yii\imagine\Image::$thumbnailBackgroundColor = Yii::$app->params['thumbnail_background_color'] ?? '000';
+            \yii\imagine\Image::$thumbnailBackgroundAlpha = Yii::$app->params['thumbnail_background_alpha'] ?? 0;
+            \yii\imagine\Image::thumbnail(
+                $filepath,
+                $w,
+                $h,
+                //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
+                $fittingModel // contain
+            )->save($thumbfilename, [
+                'jpeg_quality' => $quality,
+                'webp_quality' => $quality,
+                'png_compression_level' => $compression,
+            ]);
+
+            // upload to bucket
+            $s3FileOptions = array_merge($bucketOptions, ['Key' => $s3Thumbfilename]);
+            $result = $s3->putObject(array_merge($s3FileOptions, [
+                'SourceFile' => $thumbfilename,
+                // needed for SVGs
+                'ContentType' => $mimetype,
+                'Metadata' => [
+                    'version' => '1.0.0'
+                ]
+            ]));
+            // poll object until it is accessible
+            $s3->waitUntil('ObjectExists', $s3FileOptions);
+            // ERASE tmp thumbnail file
+            FileHelper::unlink($thumbfilename);
         } elseif ($mimetype == 'image/svg+xml') {
             // SVG MASTER = THUMBNAIL
             $s3Thumbfilename = $s3Filename;
-            // } else {
-            //DBG:
-            //throw new Exception("WDF: mime: {$mimetype}");
         }
 
         // MASTER - upload to s3
