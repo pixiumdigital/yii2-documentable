@@ -30,7 +30,7 @@ use yii\web\UploadedFile;
  */
 class Document extends ActiveRecord
 {
-    const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp'];
+    const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
     /**
      * {@inheritdoc}
