@@ -28,6 +28,11 @@ class DocumentUploaderWidget extends InputWidget
     public $index = null;
 
     /**
+     * default template
+     */
+    public $template = '{label}{input}';
+
+    /**
      * clear: boolean if true, no preview of previous docs
      */
     public $clear = false;
@@ -202,6 +207,7 @@ class DocumentUploaderWidget extends InputWidget
         // .($acceptMultipleFiles ? '[]' : '') // always return an array of files
         , [
             // 'fieldConfig' => ['template' ]
+            'template' => $this->template,
             'options' => ['class' => $formFieldClasses]])
             ->widget(\kartik\file\FileInput::classname(), $options)
             ->label(false);
