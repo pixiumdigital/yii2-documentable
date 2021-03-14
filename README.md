@@ -37,7 +37,7 @@ Add the package to the require list
 
 add this to the config
 
-```
+```php
 'controllerMap' => [
   'migrate'=>[
     'class'=>'yii\console\controllers\MigrateController',
@@ -71,9 +71,22 @@ php yii migrate/up -p vendor/pixium/yii2-documentable/migrations
 
 
 
-## Add to web.php
+### You already have a `document` table in your stack!
 
-### Enable S3 access
+don't run the default migrations. Make a copy, of the two files in the `vendor/pixium/yii2-documentable/migrations` folder to your own stack, rename the table. In the component defintition specify:
+
+```php
+//...
+'documentable' => [
+  'table_name' => 'my_document_table',
+]
+```
+
+
+
+## Yii2 setup
+
+### With AWS S3 access
 
 if your current project has the AWS component defined as such
 
@@ -112,7 +125,34 @@ all you have to do is provide the name of the bucket to the `documentable` compo
      's3_bucket_name' => getenv('AWS_S3_BUCKET_NAME') ?: 'burket-test', 
      // ALT CONFIG using FILESYSTEM
      'fs_path' => '/tmp/uploads',
-     'image_config' => [
+   ],
+ ]
+```
+
+### With FS storage
+
+no bucket? Yu want to put it all on a FS volume?
+
+ ```php
+ 'components' => [
+   'documentable' => [
+     'class' => 'pixium\documentable\DocumentableComponent',
+     // ALT CONFIG using FILESYSTEM
+     'fs_path' => '/tmp/uploads',
+   ],
+ ]
+ ```
+
+
+
+### Image defaults
+
+set the image config params
+
+```php
+   'documentable' => [
+     // ...
+     'image' => [
         'upload_max_size' => 500, // max upload size for image in Kilobytes
         'max_image_size' => 1920, // 1920x1920
         // thumbnail params
@@ -121,8 +161,7 @@ all you have to do is provide the name of the bucket to the `documentable` compo
         'thumbnail_background_alpha' => 0, // 0 to 100
         'thumbnail_type' => 'png',       
      ]
-   ],
- ]
+   ]
 ```
 
 
