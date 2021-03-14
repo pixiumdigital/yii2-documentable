@@ -70,10 +70,10 @@ class DocumentableComponent extends Component
     private function validateFS($path, $label)
     {
         if (!is_dir($path)) {
-            throw new Exception("Documentable: config['path_tmp']='{$path}' {$label} folder not found");
+            throw new Exception("Documentable: '{$path}' {$label} folder not found");
         }
         if (!is_writable($this->fs_path_tmp)) {
-            throw new Exception("Documentable: config['path_tmp']='{$path}' {$label} temp upload folder not writable");
+            throw new Exception("Documentable: '{$path}' {$label} temp upload folder not writable");
         }
     }
 
@@ -82,7 +82,11 @@ class DocumentableComponent extends Component
         parent::init();
 
         // set aws component if it set on the application
-        $this->s3 = \Yii::$app->documentable->s3 ?? false;
+        $this->s3 = \Yii::$app->aws->s3 ?? false;
+
+        // dump($this);
+        // die;
+
         if ($this->s3 && $this->s3_bucket_name) {
             // validate bucket exists
             if (!$this->s3->doesBucketExist($this->s3_bucket_name)) {
