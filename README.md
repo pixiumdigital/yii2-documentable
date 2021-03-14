@@ -75,6 +75,8 @@ php yii migrate/up -p vendor/pixium/yii2-documentable/migrations
 
 ### Enable S3 access
 
+if your current project has the AWS component defined as such
+
 ```php
 // AWS SDK Config for AWS S3
 'components' => [
@@ -94,21 +96,36 @@ php yii migrate/up -p vendor/pixium/yii2-documentable/migrations
       'use_path_style_endpoint' => true,
     ]
   ],
-  'params' => [
-    // specify bucket
-    'S3BucketName' => getenv('AWS_S3_BUCKET_NAME') ?: 'woc-bucket-test',
-    'upload_max_size' => 500, // max upload size for image in Kilobytes
-    'max_image_size' => 1920, // 1920x1920
-    // thumbnail params
-		'thumbnail_size' => ['width' => 200, 'height' => 200],
-    'thumbnail_background_color' => 'FFF', // or #AABBCC02 = RGBA
-    'thumbnail_background_alpha' => 0, // 0 to 100
-    'thumbnail_type' => 'png',
-  ]
 ],
 ```
 
-The values of `AWS_REGION`, `AWS_KEY`, `AWS_SECRET` and `AWS_ENDPOINT` should be set in `.env`
+> The values of `AWS_REGION`, `AWS_KEY`, `AWS_SECRET` and `AWS_ENDPOINT` should be set in `.env`
+
+all you have to do is provide the name of the bucket to the `documentable` component.
+
+```php
+ 'components' => [
+   'aws' => SEE_ABOVE,
+   'documentable' => [
+     'class' => 'pixium\documentable\DocumentableComponent',
+     // DEFINE YOUR BUCKET NAME HERE
+     's3_bucket_name' => getenv('AWS_S3_BUCKET_NAME') ?: 'burket-test', 
+     // ALT CONFIG using FILESYSTEM
+     'fs_path' => '/tmp/uploads',
+     'image_config' => [
+        'upload_max_size' => 500, // max upload size for image in Kilobytes
+        'max_image_size' => 1920, // 1920x1920
+        // thumbnail params
+        'thumbnail_size' => ['width' => 200, 'height' => 200],
+        'thumbnail_background_color' => 'FFF', // or #AABBCC02 = RGBA
+        'thumbnail_background_alpha' => 0, // 0 to 100
+        'thumbnail_type' => 'png',       
+     ]
+   ],
+ ]
+```
+
+
 
 
 
@@ -119,7 +136,7 @@ you'll need to add a custom controller to the controller map to make calls to `/
 ```sh
 // add custom controller route to have the whole Document module as a bundle
 'controllerMap' => [
-'document' => 'pixium\documentable\controllers\DocumentController',
+  'document' => 'pixium\documentable\controllers\DocumentController',
 ],
 ```
 

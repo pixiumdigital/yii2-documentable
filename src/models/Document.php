@@ -38,7 +38,7 @@ class Document extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'document';
+        return \Yii::$app->documentable->table_name ?? 'document';
     }
 
     /**
@@ -164,8 +164,8 @@ class Document extends ActiveRecord
             break;
         case 1: // removing original
             // delete from S3
-            $s3 = Yii::$app->aws->s3;
-            $bucket = Yii::$app->params['S3BucketName'] ?? 'no-bucket-specified';
+            $s3 = Yii::$app->documentable->s3;
+            $bucket = Yii::$app->documentable->s3_bucket_name ?? 'no-bucket-specified';
             $cmd = $s3->deleteObject([
                 'Bucket' => $bucket,
                 'Key' => $this->url_master,
@@ -264,10 +264,10 @@ class Document extends ActiveRecord
         if ($s3FileId == null) {
             return null;
         }
-        $s3 = \Yii::$app->aws->s3;
+        $s3 = \Yii::$app->documentable->s3;
         //Creating a presigned URL
         $cmd = $s3->getCommand('GetObject', [
-            'Bucket' => \Yii::$app->params['S3BucketName'],
+            'Bucket' => Yii::$app->documentable->s3_bucket_name,
             'Key' => ($s3FileId),
         ]);
 
@@ -276,8 +276,6 @@ class Document extends ActiveRecord
         // Get the actual presigned-url
         $presignedUrl = (string) $request->getUri();
 
-        //doesn't work liket this anymore
-        //$signedUrl = $s3->getObjectUrlYii::$app->params['S3BucketName'], $this->url_master, '+10 minutes');
         return $presignedUrl;
     }
 
@@ -291,10 +289,10 @@ class Document extends ActiveRecord
         if ($s3FileId == null) {
             return null;
         }
-        $s3 = Yii::$app->aws->s3;
+        $s3 = Yii::$app->documentable->s3;
 
         $config = [
-            'Bucket' => Yii::$app->params['S3BucketName'],
+            'Bucket' => \Yii::$app->documentable->s3_bucket_name,
             'Key' => ($s3FileId),
         ];
 
@@ -359,8 +357,8 @@ class Document extends ActiveRecord
         $s3Thumbfilename = null;
 
         // put it on S3
-        $s3 = Yii::$app->aws->s3;
-        $bucketOptions = ['Bucket' => Yii::$app->params['S3BucketName']];
+        $s3 = Yii::$app->documentable->s3;
+        $bucketOptions = ['Bucket' => \Yii::$app->documentable->s3_bucket_name];
         // dump([
         //     // 's3endpoint' => $s3->getEndpoint(),
         //     // 's3region' => $s3->getRegion(),

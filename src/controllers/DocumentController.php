@@ -12,6 +12,9 @@ use \yii\filters\AccessRule;
 use \yii\filters\AccessControl;
 use pixium\documentable\models\Document;
 
+/**
+ * Replace with your own controller if you need a differnt behavior
+ */
 class DocumentController extends Controller
 {
     /**
@@ -25,9 +28,9 @@ class DocumentController extends Controller
             // ]
             // ,
              'access' => [
-                'class' => AccessControl::className(),
+                'class' => AccessControl::class,
                 // We will override the default rule config with the new AccessRule class
-                'ruleConfig' => ['class' => AccessRule::className()],
+                'ruleConfig' => ['class' => AccessRule::class],
                 'rules' => [
                     [
                         'actions' => [
@@ -143,7 +146,7 @@ class DocumentController extends Controller
      */
     public function actionGetThumbnail($hash)
     {
-        $id = h2id($hash);
+        $id = $this->documentable->hasher::h2id($hash);
         if (null !== $id) {
             if (null !== ($doc = Document::findOne($id))) {
                 $bin = $doc->getS3Object(false);
@@ -173,6 +176,6 @@ class DocumentController extends Controller
             return $model;
         }
 
-        throw new NotFoundHttpException(\t('The requested page does not exist.'));
+        throw new NotFoundHttpException('The requested page does not exist.');
     }
 }
