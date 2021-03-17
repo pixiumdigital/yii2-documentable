@@ -100,9 +100,6 @@ class DocumentableBehavior extends Behavior
                 Document::deleteForModel($model, $options);
             }
 
-            // dump(['files' => $files]);
-            // dump(['class' => get_class($files)]);
-            // die;
             if (!is_array($files)) {
                 throw new \yii\base\UserException('DocumentableBehavior afterSave expects an array of files');
             }

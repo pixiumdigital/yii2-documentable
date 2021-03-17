@@ -359,16 +359,6 @@ class Document extends ActiveRecord
         // put it on S3
         $s3 = Yii::$app->documentable->s3;
         $bucketOptions = ['Bucket' => \Yii::$app->documentable->s3_bucket_name];
-        // dump([
-        //     // 's3endpoint' => $s3->getEndpoint(),
-        //     // 's3region' => $s3->getRegion(),
-        //     'path' => $filepath, // /tmp/dgsjdgkd
-        //     'basename' => $basename,
-        //     'extension' => $extension,
-        //     'name' => $filename, // myfile.svg
-        //     's3Filename' => $s3Filename
-        // ]);
-        // die;
 
         // MASTER: resize image to get to the max allowed webapp size 'max_image_size'
         $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
@@ -519,13 +509,6 @@ class Document extends ActiveRecord
     {
         $filename = "/tmp/{$file->baseName}.{$file->extension}";
         $file->saveAs($filename); // guzzle the file
-        // dump([
-        //     'class' => get_class($file),
-        //     'filename' => $filename,
-        //     'file' => $file,
-        // ]);
-        // dump(['options' => $options]);
-        // die;
 
         $rel_type_tag = $options['tag'] ?? null;
 
@@ -537,8 +520,6 @@ class Document extends ActiveRecord
         ) {
             // unzip and if unzip is an array, use the array to filter the mimetypes to extract
             // if true extract all
-            // dump(['zipped', 'file' => $file, 'options' => $options]);
-            // die;
             $zip = new \ZipArchive();
             $res = $zip->open($filename);
             // save files to process in order
