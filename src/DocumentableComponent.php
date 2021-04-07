@@ -5,6 +5,7 @@ use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
 use Exception;
 use yii\base\Component;
+use yii\helpers\VarDumper;
 
 /**
  *   Add to config.components
@@ -26,6 +27,9 @@ class DocumentableComponent extends Component
     public $s3 = null; // 'common\services\AWSComponent'
 
     /** @var string $s3_bucket_name */
+    public $aws_s3_config = null;
+
+    /** @var string $$s3_bucket_name name of the bucket */
     public $s3_bucket_name = 'bucket';
 
     /**
@@ -70,10 +74,10 @@ class DocumentableComponent extends Component
     private function validateFS($path, $label)
     {
         if (!is_dir($path)) {
-            throw new Exception("Documentable: config['path_tmp']='{$path}' {$label} folder not found");
+            throw new Exception("Documentable: '{$path}' {$label} folder not found");
         }
         if (!is_writable($this->fs_path_tmp)) {
-            throw new Exception("Documentable: config['path_tmp']='{$path}' {$label} temp upload folder not writable");
+            throw new Exception("Documentable: '{$path}' {$label} temp upload folder not writable");
         }
     }
 
@@ -81,18 +85,26 @@ class DocumentableComponent extends Component
     {
         parent::init();
 
-        // set aws component if it set on the application
-        $this->s3 = \Yii::$app->documentable->s3 ?? false;
-        if ($this->s3 && $this->s3_bucket_name) {
-            // validate bucket exists
+        if (null !== $this->aws_s3_config) {
+            if ($name = $this->aws_s3_config['bucket_name'] ?? false) {
+                $this->s3_bucket_name = $name;
+                // remove bucket name from the config before passing it to S3Client
+                unset($this->aws_s3_config['bucket_name']);
+            }
+            // create bucket handler
+            $this->s3 = new \Aws\S3\S3Client($this->aws_s3_config);
+
+            // validate bucket existence
             if (!$this->s3->doesBucketExist($this->s3_bucket_name)) {
                 throw new Exception("Documentable: S3 bucket name '{$this->s3_bucket_name}' not found");
             }
         } else {
-            // validate FS storage path if no S3
+            // use FS - validate file storage path
             $this->validateFS($this->fs_path, 'upload');
         }
 
+        // dump(['config' => $this->config, 'a' => 'b']);
+        // die;
         // set hasher
         $this->hasher = new $this->hasher_class_name();
 

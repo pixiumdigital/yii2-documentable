@@ -100,9 +100,6 @@ class DocumentableBehavior extends Behavior
                 Document::deleteForModel($model, $options);
             }
 
-            // dump(['files' => $files]);
-            // dump(['class' => get_class($files)]);
-            // die;
             if (!is_array($files)) {
                 throw new \yii\base\UserException('DocumentableBehavior afterSave expects an array of files');
             }
@@ -135,7 +132,7 @@ class DocumentableBehavior extends Behavior
      * get Docs
      *  if no attribute is given get all docs
      * @param string $prop property name
-     * @return ActiveQuery array of DocumentRels
+     * @return ActiveQuery array of Document
      */
     public function getDocs($attribute = null)
     {
@@ -159,6 +156,7 @@ class DocumentableBehavior extends Behavior
     {
         $options['class'] = 'thumbnail '.($options['class'] ?? '');
         if (null !== ($doc1 = $this->getDocs($prop)->one())) {
+            /** @var Document doc1 */
             // get thumbnail url
             if (null !== ($url = $doc1->getS3Url(false))) {
                 return Html::img($url, $options);

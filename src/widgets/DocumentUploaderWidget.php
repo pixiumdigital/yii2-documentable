@@ -2,6 +2,7 @@
 
 namespace pixium\documentable\widgets;
 
+use Exception;
 use Yii;
 use yii\widgets\InputWidget;
 
@@ -113,17 +114,13 @@ class DocumentUploaderWidget extends InputWidget
         }
         $model = $this->model;
         if (!$model->hasMethod('getDocs')) {
-            dump('model needs to implement DocumentableBehavior');
-            return;
+            throw new Exception(get_class($model).' needs to implement DocumentableBehavior');
         }
         // attached file should be defined as a property
         if (!($model->hasAttribute($this->attribute) || $model->hasProperty($this->attribute))) {
-            dump('model ['.$model->className()."] has no attribute [{$this->attribute}]");
-            return;
+            throw new Exception(get_class($model)." has no [{$this->attribute}] attribute");
         }
         $form = $this->field->form;
-        //dump(['attributes/property' => $model->{$this->attribute}]);
-        //return;
         // set filters
         $acceptMultipleFiles = $this->multiple ?? $model->filter[$this->attribute]['multiple'] ?? false;
         // overwrites initial if accpets only one file and if set in DocumentableBehavior's filters
@@ -136,8 +133,6 @@ class DocumentUploaderWidget extends InputWidget
         $existingDocUrls = [];
         $existingDocConfigs = [];
         $docs = $model->getDocs($this->attribute)->all(); // get docs for given property
-        // dump(['docrels' => $docrels]);
-        // die;
         // prepare configuration for
         foreach ($docs as $doc) {
             array_push($existingDocUrls, $doc->getS3Url());

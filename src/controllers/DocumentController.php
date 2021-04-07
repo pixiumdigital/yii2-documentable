@@ -63,17 +63,6 @@ class DocumentController extends Controller
      */
     public function actionDelete()
     {
-        // if (\Yii::$app->request->isAjax) {
-        //     dump(['AJAX',
-        //     'key' => \Yii::$app->request->post('key') ?? 'ND'
-        //     ]);
-        //     die;
-        // }
-        // if (!\Yii::$app->request->isPost) {
-        //     dump('AJAX');
-        //     die;
-        // }
-
         if (\Yii::$app->request->isAjax) {
             if (($id = \Yii::$app->request->post('key')) != null) {
                 \Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
@@ -93,9 +82,6 @@ class DocumentController extends Controller
             \Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
             $model = $this->findModel($id);
             if (!$model->delete()) {
-                // something went wrong with deleting
-                // dump($model->errors);
-                // die;
                 return ['error' => ['msg' => "Document {$id} couldn't be deleted."]];
             }
             return ['success' => true];
