@@ -2,9 +2,11 @@
 namespace pixium\documentable;
 
 use Aws\Exception\AwsException;
+use Aws\RetryMiddleware;
 use Aws\S3\S3Client;
 use Exception;
 use yii\base\Component;
+use yii\helpers\FileHelper;
 use yii\helpers\VarDumper;
 
 /**
@@ -81,6 +83,14 @@ class DocumentableComponent extends Component
         }
     }
 
+    /**
+     * @return bool true: if the component is set with S3
+     */
+    public function getUsesS3()
+    {
+        return null !== $this->s3;
+    }
+
     public function init()
     {
         parent::init();
@@ -110,5 +120,38 @@ class DocumentableComponent extends Component
 
         //  validate temp folder
         $this->validateFS($this->fs_path_tmp, 'temporary upload');
+    }
+
+    /**
+     * @param string $filename target
+     * @param string $filepath src
+     * @param string $mimetype
+     */
+    public function saveFile($filename, $filepath, $mimetype)
+    {
+        if (null !== $this->s3) {
+            $s3FileOptions = [
+                'Bucket' => $this->s3_bucket_name,
+                'Key' => $filename
+            ];
+
+            $result = $this->s3->putObject(array_merge($s3FileOptions, [
+                'SourceFile' => $filepath,
+                // needed for SVGs
+                'ContentType' => $mimetype,
+                'Metadata' => [
+                    'version' => '1.0.0'
+                ]
+            ]));
+            // poll object until it is accessible
+            $this->s3->waitUntil('ObjectExists', $s3FileOptions);
+            // ERASE tmp thumbnail file
+            FileHelper::unlink($filepath);
+
+            return true;
+        }
+        // FS move
+        rename($filepath, "{$this->fs_path}/{$filename}");
+        return true;
     }
 }

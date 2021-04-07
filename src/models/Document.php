@@ -3,6 +3,7 @@
 namespace pixium\documentable\models;
 
 use Exception;
+use pixium\documentable\DocumentableComponent;
 use pixium\documentable\DocumentableException;
 use Yii;
 // imagine to create thumbs out of images
@@ -348,6 +349,8 @@ class Document extends ActiveRecord
         $relTag,
         $options
     ) {
+        /** @var DocumentableComponent $docsvc */
+        $docsvc = \Yii::$app->documentable;
         $now = time();
         // filename is the base filename with extension (no path info attached)
         $filename = "{$basename}.{$extension}"; // I know it stll accepts "file."
@@ -356,14 +359,11 @@ class Document extends ActiveRecord
 
         $s3Thumbfilename = null;
 
-        // put it on S3
-        $s3 = Yii::$app->documentable->s3;
-        $bucketOptions = ['Bucket' => \Yii::$app->documentable->s3_bucket_name];
-
         // MASTER: resize image to get to the max allowed webapp size 'max_image_size'
         $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
         $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
 
+        // TODO: test if imgine lib is available
         if (in_array($mimetype, self::RESIZABLE_MIMETYPES)) {
             // it's an image to resize!
             $max = Yii::$app->params['max_image_size'] ?? 1920;
@@ -441,42 +441,17 @@ class Document extends ActiveRecord
                 'png_compression_level' => $compression,
             ]);
 
-            // upload to bucket
-            $s3FileOptions = array_merge($bucketOptions, ['Key' => $s3Thumbfilename]);
-            $result = $s3->putObject(array_merge($s3FileOptions, [
-                'SourceFile' => $thumbfilename,
-                // needed for SVGs
-                'ContentType' => $mimetype,
-                'Metadata' => [
-                    'version' => '1.0.0'
-                ]
-            ]));
-            // poll object until it is accessible
-            $s3->waitUntil('ObjectExists', $s3FileOptions);
-            // ERASE tmp thumbnail file
-            FileHelper::unlink($thumbfilename);
+            // upload to bucket / FS
+            $docsvc->saveFile($s3Thumbfilename, $thumbfilename, $mimetype);
         } elseif ($mimetype == 'image/svg+xml') {
             // SVG MASTER = THUMBNAIL
             $s3Thumbfilename = $s3Filename;
         }
 
         // MASTER - upload to s3
-        $s3FileOptions = array_merge($bucketOptions, ['Key' => $s3Filename]);
-        $result = $s3->putObject(array_merge($s3FileOptions, [
-            'SourceFile' => $filepath,
-            // needed for SVGs
-            'ContentType' => $mimetype,
-            'Metadata' => [
-                'version' => '1.0.0',
-                'tag' => $relTag ?? '', //tag object in bucket too
-            ]
-        ]));
-        // poll object until it is accessible
-        $s3->waitUntil('ObjectExists', $s3FileOptions);
         // get the size after eventual compression
         $filesizeFinal = filesize($filepath);
-        // ERASE tmp file
-        FileHelper::unlink($filepath);
+        $docsvc->saveFile($s3Filename, $filepath, $mimetype);
 
         // Create `document`
         $model = new Document([
