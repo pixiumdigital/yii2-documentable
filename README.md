@@ -2,11 +2,13 @@
 
 ## Important
 
-### Release v2.x
+### Changes
 
-Version `2.x`comes with a change of architecture. The `DocumentRel` class was merged with  `Document`
-
-A migration is provided to update Document from DocumentRel and get rid of the rel table.
+- Release v2.x
+  Version `2.x` comes with a change of architecture. The `DocumentRel` class was merged with  `Document`
+  A migration is provided to update Document from DocumentRel and get rid of the rel table.
+- Release v3.x
+  Now Documentable is setup as a component. The params logic moves to the component and the plugins looks automatically for an `aws` component. If not present, it will use FS.
 
 
 
@@ -28,14 +30,23 @@ Add this repository to your composer.json file
 
 Add the package to the require list
 ```
-"pixium/yii2-documentable": "1.0"
+"pixium/yii2-documentable": "2.0"
+```
+
+or, for the v3 (wip)
+
+```
+"pixium/yii2-documentable": "dev-master_v3"
 ```
 
 
 
-## Add to console.php / main.php
+## Migrations 
 
-add this to the config
+Add to `config/console.php` (Yii2 basic)  or `console/main.php` (Yii2 advanced)
+
+Add this for the migration path to be recognized y `yii migrate` 
+If you plan to use your own table with a different name, copy the table structure provided by the migrations in the `@vendor/pixium/yii2-documentable/migrations` folder
 
 ```php
 'controllerMap' => [
@@ -44,36 +55,29 @@ add this to the config
     'migrationLookup'=>[
       '@vendor/pixium/yii2-documentable/migrations',
       '@app/migrations'
-      // add other migration path here
     ]
   ]
 ],
-
 ```
 
-
-
-## Migrations (manual)
-
-Run the migrations
+or manually run 
 
 on Yii Basic:
 
 ```sh
-php yii migrate/up -p @app/vendor/pixium/yii2-documentable/migrations
-```
-
-on Yii advanced:
-
-```
-php yii migrate/up -p vendor/pixium/yii2-documentable/migrations
+# Yii2 Basic
+./yii migrate/up -p @app/vendor/pixium/yii2-documentable/migrations
+# Yii2 Advanced
+./yii migrate/up -p vendor/pixium/yii2-documentable/migrations
 ```
 
 
 
 ### You already have a `document` table in your stack!
 
-don't run the default migrations. Make a copy, of the two files in the `vendor/pixium/yii2-documentable/migrations` folder to your own stack, rename the table. In the component defintition specify:
+> Available only with v3
+
+**Don't run the default migrations**. Make a copy, of the files in  `vendor/pixium/yii2-documentable/migrations`  to your project's migration folder, rename the table `document` to `my_document_table`. In the component defintition specify:
 
 ```php
 //...
@@ -88,50 +92,47 @@ don't run the default migrations. Make a copy, of the two files in the `vendor/p
 
 ### With AWS S3 access
 
-if your current project has the AWS component defined as such
+The Documentable component now includes the s3 bucket handler directly. To use localstack set your component like this:
 
 ```php
-// AWS SDK Config for AWS S3
-'components' => [
-  'aws' => [
-    'class' => 'app\components\AWSComponent',
-    's3config' => [
-      'version' => 'latest',
-      'region' => getenv('AWS_REGION') ?: 'default',
-      'credentials' => [
-        'key' => getenv('AWS_KEY') ?: 'none',
-        'secret' => getenv('AWS_SECRET') ?: 'none'
-      ],
-      // call docker defined localstack API endpoint for AWS services
-      'endpoint' => getenv('AWS_ENDPOINT') ?: 'http://localstack:4572',
-      // avoid lib curl issues on bucket-name.ENDPOINT resolution
-      // <https://github.com/localstack/localstack/issues/836>
-      'use_path_style_endpoint' => true,
-    ]
+'documentable' => [
+  'class' => 'pixium\documentable\DocumentableComponent',
+  'aws_s3_config' => [
+    'bucket_name' => 'my-buket-name',   // DEFINE YOUR BUCKET NAME HERE
+    'endpoint' => getenv('AWS_ENDPOINT') ?: 'http://localstack:4572'
   ],
 ],
 ```
 
-> The values of `AWS_REGION`, `AWS_KEY`, `AWS_SECRET` and `AWS_ENDPOINT` should be set in `.env`
-
-all you have to do is provide the name of the bucket to the `documentable` component.
+for production:
 
 ```php
- 'components' => [
-   'aws' => SEE_ABOVE,
-   'documentable' => [
-     'class' => 'pixium\documentable\DocumentableComponent',
-     // DEFINE YOUR BUCKET NAME HERE
-     's3_bucket_name' => getenv('AWS_S3_BUCKET_NAME') ?: 'burket-test', 
-     // ALT CONFIG using FILESYSTEM
-     'fs_path' => '/tmp/uploads',
-   ],
- ]
+'documentable' => [
+  'class' => 'pixium\documentable\DocumentableComponent',
+  'aws_s3_config' => [
+    // DEFINE YOUR BUCKET NAME HERE
+    'bucket_name' => getenv('AWS_S3_BUCKET_NAME'),
+    'version' => 'latest',
+    'region' => getenv('AWS_REGION'),
+    'credentials' => [
+      'key' => getenv('AWS_KEY'),
+      'secret' => getenv('AWS_SECRET')
+    ],
+    // call docker defined localstack API endpoint for AWS services
+    // avoid lib curl issues on bucket-name.ENDPOINT resolution
+    // <https://github.com/localstack/localstack/issues/836>
+    'use_path_style_endpoint' => true,
+  ],
+],
 ```
+
+> The values of `AWS_REGION`, `AWS_KEY`, `AWS_SECRET` and `AWS_ENDPOINT` should be set in `.env` or in the `docker-compose.yml` file (section environment)
+
+
 
 ### With FS storage
 
-no bucket? Yu want to put it all on a FS volume?
+no bucket? You want to put it all on a FS volume?
 
  ```php
  'components' => [
@@ -152,7 +153,7 @@ set the image config params
 ```php
    'documentable' => [
      // ...
-     'image' => [
+     'image_config' => [
         'upload_max_size' => 500, // max upload size for image in Kilobytes
         'max_image_size' => 1920, // 1920x1920
         // thumbnail params
@@ -345,4 +346,5 @@ sudo yum install libzip-dev
 sudo service php-fpm restart
 sudo service nginx restart
 ```
+
 
