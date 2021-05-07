@@ -187,6 +187,19 @@ class DocumentableBehavior extends Behavior
     }
 
     /**
+     * mass delete of multiple docs based on attribute name
+     * @param string $attribute
+     */
+    public function deleteDocs($attribute)
+    {
+        $docs = $this->getDocs($attribute)->all();
+        foreach ($docs as $doc) {
+            /** @var Document $doc */
+            $doc->delete();
+        }
+    }
+
+    /**
      * upload a file to a Documentable model
      * @param string $attribute on which the filemust be attached
      * @param string $path to upload

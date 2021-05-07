@@ -2,6 +2,7 @@
 
 namespace pixium\documentable\models;
 
+use Aws\S3\S3Client;
 use Exception;
 use pixium\documentable\DocumentableComponent;
 use pixium\documentable\DocumentableException;
@@ -133,20 +134,6 @@ class Document extends ActiveRecord
     }
 
     /**
-     * before Delete
-     */
-    public function beforeDelete()
-    {
-        if (!parent::beforeDelete()) {
-            return false;
-        }
-        return true;
-        // check that there isn't any document_rel linked to this document
-        // accept delete only if no relation exists
-        // return empty($this->documentRel);
-    }
-
-    /**
      * delete
      * proper delete also removes ressources from S3
      */
@@ -164,22 +151,13 @@ class Document extends ActiveRecord
             $this->updateAll(['copy_group' => null], ['copy_group' => $this->copy_group]);
             break;
         case 1: // removing original
-            // delete from S3
-            $s3 = Yii::$app->documentable->s3;
-            $bucket = Yii::$app->documentable->s3_bucket_name ?? 'no-bucket-specified';
-            $cmd = $s3->deleteObject([
-                'Bucket' => $bucket,
-                'Key' => $this->url_master,
-                // 'VersionId' => 'string',
-            ]);
-            // delete thumbnail as well if it exists
+            /** @var DocumentableComponent $docsvc */
+            $docsvc = \Yii::$app->documentable;
+            $docsvc->deleteFile($this->url_master);
+            // delte the thumbnail if available
             if ($this->url_thumb
             && ($this->url_thumb != $this->url_master)) {
-                $cmd = $s3->deleteObject([
-                    'Bucket' => $bucket,
-                    'Key' => $this->url_thumb,
-                    // 'VersionId' => 'string',
-                ]);
+                $docsvc->deleteFile($this->url_master);
             }
             break;
         default:
@@ -194,6 +172,8 @@ class Document extends ActiveRecord
      * move from rank to
      * move from rank iFrom to iTo (target)
      * C:max O(2)
+     * @param int $iFrom rank to move from
+     * @param int $iTo rank to move to (if not specified move down rank)
      */
     public function moveFromRankTo($iFrom, $iTo = null)
     {
@@ -265,6 +245,7 @@ class Document extends ActiveRecord
         if ($s3FileId == null) {
             return null;
         }
+        /** @var S3Client $s3 */
         $s3 = \Yii::$app->documentable->s3;
         //Creating a presigned URL
         $cmd = $s3->getCommand('GetObject', [
@@ -290,6 +271,7 @@ class Document extends ActiveRecord
         if ($s3FileId == null) {
             return null;
         }
+        /** @var S3Client $s3 */
         $s3 = Yii::$app->documentable->s3;
 
         $config = [
@@ -303,22 +285,6 @@ class Document extends ActiveRecord
         // Display the object in the browser.
         //header("Content-Type: {$result['ContentType']}");
         return $result['Body'];
-    }
-
-    /**
-     *
-     */
-    public static function deleteForModel($model, $options = [])
-    {
-        $rels = Document::find()
-            ->where(['rel_id' => $model->id])
-            ->andWhere(['rel_table' => $model->tableName()])
-            ->andFilterWhere(['rel_type_tag' => $options['tag'] ?? null])
-            ->all();
-        foreach ($rels as $rel) {
-            // delete each DocumentRel, and Document if no Rel is attached to it
-            $res = $rel->delete();
-        }
     }
 
     /**
@@ -359,45 +325,7 @@ class Document extends ActiveRecord
 
         $s3Thumbfilename = null;
 
-        // MASTER: resize image to get to the max allowed webapp size 'max_image_size'
-        $quality = Yii::$app->params['quality'] ?? 70; // smaller number smaller files
-        $compression = Yii::$app->params['compression'] ?? 7; // larger number smaller files
-
-        // TODO: test if imgine lib is available
-        if (in_array($mimetype, self::RESIZABLE_MIMETYPES)) {
-            // it's an image to resize!
-            $max = Yii::$app->params['max_image_size'] ?? 1920;
-
-            //  $image, $width, $height, $keepAspectRatio = true, $allowUpscaling = false
-            $path = Yii::getAlias($filepath);
-            $image = \yii\imagine\Image::resize($path, $max, $max);
-            try {
-                $exif = exif_read_data($path);
-                // handle EXIF rotation
-                switch ($exif['Orientation'] ?? 0) {
-                case 3:
-                    $image->rotate(180);
-                    break;
-                case 6:
-                    $image->rotate(90);
-                    break;
-                case 8:
-                    $image->rotate(-90);
-                    break;
-                default:
-                }
-            } catch (Exception $e) {
-                // don't reorientate
-            }
-            // save image to $filePath
-            $image->save($path, [
-                'quality' => $quality,
-                'jpeg_quality' => $quality,
-                'webp_quality' => $quality,
-                'png_compression_level' => $compression,
-            ]);
-            //$filesize = filesize($path);
-        }
+        $docsvc->processImageFile($filepath, $mimetype);
 
         // THUMBNAIL: (preview) generate thumbnail and $s3Thumbfilename
         // if svg, use the same file, continue
@@ -408,38 +336,9 @@ class Document extends ActiveRecord
             $thumbExtension = Yii::$app->params['thumbnail_type'] ?? $extension;
             $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
             $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
-            $wh = Yii::$app->params['thumbnail_size'];
-            $w = $wh['width'] ?? 150;
-            $h = $wh['height'] ?? 150;
-            // SQUARE shortcut: use 'square'=150
-            if ($xy = ($wh['square'] ?? false)) {
-                $w = $xy;
-                $h = $xy;
-            }
-            $fittingModel = isset($wh['crop'])
-                ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND
-                : \Imagine\Image\ImageInterface::THUMBNAIL_INSET;
-            // min-width / min-height
-            // if ($mw = ($wh['min_width'] ?? false)) {
-            //     // fix height EXPLORE: h=null)
-            // }
-            // if ($mh = ($wh['min_height'] ?? false)) {
-            //     // fix width (EXPLORE: w=null)
-            // }
 
-            \yii\imagine\Image::$thumbnailBackgroundColor = Yii::$app->params['thumbnail_background_color'] ?? '000';
-            \yii\imagine\Image::$thumbnailBackgroundAlpha = Yii::$app->params['thumbnail_background_alpha'] ?? 0;
-            \yii\imagine\Image::thumbnail(
-                $filepath,
-                $w,
-                $h,
-                //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
-                $fittingModel // contain
-            )->save($thumbfilename, [
-                'jpeg_quality' => $quality,
-                'webp_quality' => $quality,
-                'png_compression_level' => $compression,
-            ]);
+            // make thumbnail
+            $docsvc->processImageThumbnail($filepath, $thumbfilename, $mimetype);
 
             // upload to bucket / FS
             $docsvc->saveFile($s3Thumbfilename, $thumbfilename, $mimetype);
@@ -451,6 +350,7 @@ class Document extends ActiveRecord
         // MASTER - upload to s3
         // get the size after eventual compression
         $filesizeFinal = filesize($filepath);
+
         $docsvc->saveFile($s3Filename, $filepath, $mimetype);
 
         // Create `document`
