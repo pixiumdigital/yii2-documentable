@@ -13,7 +13,7 @@ use yii\helpers\Html;
  *      'class' => pixium\documentable\behaviors\DocumentableBehavior::className(),
  *      'filter' => [
  *          'attribute1' => [
- *            'tag' => 'AVATAR',            // relation_type_tag in document_rel
+ *            'tag' => 'AVATAR',            // relation_type_tag in document (if not specified attribute1 will be used)
  *            'multiple' =>  false,         // true, false accept multiple uploads
  *            'replace' => false,           // force replace of existing images
  *            'thumbnail' => false,         // create thumbnails for images
@@ -87,10 +87,6 @@ class DocumentableBehavior extends Behavior
             // do it here not in the controllers.... simplifies the flow
             $files = \yii\web\UploadedFile::getInstances($model, $prop);
             $model->{$prop} = $files;
-            // use property if no tag defined
-            if (!isset($options['tag'])) {
-                $options['tag'] = $prop;
-            }
 
             // process this property
             $multiple = $options['multiple'] ?? false;
@@ -105,7 +101,12 @@ class DocumentableBehavior extends Behavior
                 throw new \yii\base\UserException('DocumentableBehavior afterSave expects an array of files');
             }
             foreach ($files as $file) {
-                Document::uploadFileForModel($file, $model, $options);
+                Document::uploadFileForModel(
+                    $file,
+                    $model,
+                    $options['tag'] ?? $prop, // use property if no tag defined
+                    $options
+                );
                 if (!$multiple) {
                     // handles the case multiple files where given but only one is required by the model
                     break;
@@ -135,11 +136,10 @@ class DocumentableBehavior extends Behavior
      * @param string $prop property name
      * @return ActiveQuery array of Document
      */
-    public function getDocs($attribute = null)
+    public function getDocs($prop = null)
     {
         $model = $this->owner;
-        $relTypeTag = $this->filter[$attribute]['tag'] ?? $attribute ?? null;
-        // throw new Exception('table:'.$model->tableName()." - prop:{$prop} => {$relTypeTag}");
+        $relTypeTag = $this->filter[$prop]['tag'] ?? $prop ?? null;
         return Document::find()
             ->andWhere(['rel_table' => $model->tableName()])
             ->andWhere(['rel_id' => $model->id])
@@ -149,6 +149,7 @@ class DocumentableBehavior extends Behavior
     }
 
     /**
+     * Provided as a quick way to retrieve a doc
      * @param string $prop property name
      * @param array $options html options for img tag
      * @param string $default tag generated if no image is available
@@ -156,66 +157,53 @@ class DocumentableBehavior extends Behavior
     public function getThumbnail($prop, $options = [], $default = null)
     {
         $options['class'] = 'thumbnail '.($options['class'] ?? '');
+        // return first thumbanil for the property
         if (null !== ($doc1 = $this->getDocs($prop)->one())) {
             /** @var Document doc1 */
             // get thumbnail url
-            if (null !== ($url = $doc1->getS3Url(false))) {
+            if (null !== ($url = $doc1->getURI(false))) {
                 return Html::img($url, $options);
             }
         }
-        return (null === $default)
-            ? '<div class="'.$options['class'].'"><i class="fa fa-file-image-o fa-3x" aria-hidden="true"></i></div>'
-            : $default;
+        // user default
+        if (null != $default) {
+            return $default;
+        }
+        // component default
+        /** @var DocumentableComponent $docsvc */
+        $docsvc = \Yii::$app->documentable;
+        return $docsvc->getThumbnailDefault($options);
     }
 
     /**
-     * copy docs associated with one attribute to a given model
-     * @param string $attribute
+     * copy docs associated with one attribute TO a given model
+     * @param string $prop
      * @param ActiveRecord $model target model to copy to
      * @throws DocumentableException
      */
-    public function copyDocs($attribute, $model)
+    public function copyDocs($prop, $model)
     {
         if (!$model->hasMethod('getDocs')) {
             throw new DocumentableException(DocumentableException::DEXC_NOT_DOCUMENTABLE, 'Target object is not a Documentable');
         }
 
-        $docs = $this->getDocs($attribute)->all();
+        $docs = $this->getDocs($prop)->all();
         foreach ($docs as $doc) {
             /** @var Document $doc */
-            $doc->copyToModel($model, $attribute);
+            $doc->copyToModel($model, $prop);
         }
     }
 
     /**
      * mass delete of multiple docs based on attribute name
-     * @param string $attribute
+     * @param string $prop
      */
-    public function deleteDocs($attribute)
+    public function deleteDocs($prop)
     {
-        $docs = $this->getDocs($attribute)->all();
+        $docs = $this->getDocs($prop)->all();
         foreach ($docs as $doc) {
             /** @var Document $doc */
             $doc->delete();
         }
-    }
-
-    /**
-     * upload a file to a Documentable model
-     * @param string $attribute on which the filemust be attached
-     * @param string $path to upload
-     * @throws DocumentableException
-     */
-    public function uploadFile($attribute, $path)
-    {
-        $model = $this->owner;
-        $options = $this->filter[$attribute] ?? null;
-        // ensure attribute is used if no specific tag is defined
-        $options['tag'] = $options['tag'] ?? $attribute;
-        if (null == $options) {
-            throw new DocumentableException(DocumentableException::DEXC_NO_SUCH_ATTRIBUTE, "No Such Attribute: [{$attribute}]");
-        }
-        // upload file to owner moeel
-        Document::uploadFSFileForModel($path, $model, $options);
     }
 }

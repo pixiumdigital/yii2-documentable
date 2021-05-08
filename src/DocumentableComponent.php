@@ -7,6 +7,7 @@ use Aws\S3\S3Client;
 use Exception;
 use yii\base\Component;
 use yii\helpers\FileHelper;
+use yii\helpers\Html;
 use yii\helpers\VarDumper;
 
 /**
@@ -37,6 +38,8 @@ use yii\helpers\VarDumper;
  *              'webp_quality' => webp quality uses quality if not set,
  *              'png_compression_level' => png compression (default = 6), 1 quality - 9 small size
  *              'thumbnail' => [
+ *                  'default' => null  url to default image
+ *                  'default_icon' => '<i class="fa fa-file-image-o fa-3x" aria-hidden="true"></i>'
  *                  'type' => 'png' (default = null: copy from parent )
  *                  'square' => 150 (default)
  *                  'width' => 200, 'height' => 100,
@@ -132,7 +135,7 @@ class DocumentableComponent extends Component
     {
         parent::init();
 
-        // dump($this->aws_s3_config);
+        // dump($this);
         // die;
 
         if (null !== $this->aws_s3_config) {
@@ -170,6 +173,11 @@ class DocumentableComponent extends Component
      */
     public function processImageFile($path, $mimetype, $imageOptions = [])
     {
+        // if Imagine is not included, don't resize
+        if (!class_exists('\yii\imagine\Image')) {
+            return false;
+        }
+
         // TODO: test if imagine available
         if (!in_array($mimetype, self::RESIZABLE_MIMETYPES)) {
             return false;
@@ -221,7 +229,11 @@ class DocumentableComponent extends Component
             $mimetype = FileHelper::getMimeType($path);
         }
 
-        // TODO: test if imagine available
+        // if Imagine is not included, don't resize
+        if (!class_exists('\yii\imagine\Image')) {
+            return false;
+        }
+        // if the file is not an image or not a resizable one, exit
         if (!in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
             return false;
         }
@@ -229,8 +241,6 @@ class DocumentableComponent extends Component
         $options = array_merge_recursive($this->imageOptions, $imageOptions);
         $thumbnailOptions = $options['thumbnail'] ?? ['square' => 150];
 
-        // it's an image to resize!
-        // TODO: get from imageOptions
         $pathParts = pathinfo($path);
         $basename = $pathParts['filename'];
         // extract thumbnail options
@@ -325,7 +335,8 @@ class DocumentableComponent extends Component
     }
 
     /**
-     *
+     * @param string $filename
+     * @return string URI to file
      */
     public function getURI($filename, $options = [])
     {
@@ -342,5 +353,41 @@ class DocumentableComponent extends Component
         }
         // USE FS
         return "{$this->fs_path}/{$filename}";
+    }
+
+    /**
+     * @param string $filename
+     * @return mixed the file
+     */
+    public function getObject($filename, $mimetype, $options = [])
+    {
+        if (null !== $this->s3) {
+            //Creating a presigned URL
+            $result = $this->s3->getObject([
+                'Bucket' => $this->s3_bucket_name,
+                'Key' => ($filename),
+            ]);
+            // Display the object in the browser.
+            //header("Content-Type: {$result['ContentType']}");
+            return $result['Body'] ?? null;
+        }
+        // USE FS
+        return file_get_contents($filename);
+    }
+
+    /**
+     * return default thumbnail defined on component
+     * @return string html for default thumbnail
+     */
+    public function getThumbnailDefault($options = [])
+    {
+        $thumbnailOptions = $this->imageOptions['thumbnail'] ?? [];
+        $imgUrl = $thumbnailOptions['default'] ?? null;
+        if (null != $imgUrl) {
+            return Html::img($imgUrl, $options);
+        }
+        // go for icons
+        $icon = $thumbnailOptions['default_icon'] ?? '<i class="fa fa-file-image-o fa-3x" aria-hidden="true"></i>';
+        return Html::tag('div', $icon, $options);
     }
 }

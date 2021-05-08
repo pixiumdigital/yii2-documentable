@@ -150,15 +150,16 @@ class Document extends ActiveRecord
         case 2: // remove last copy of original
             $this->updateAll(['copy_group' => null], ['copy_group' => $this->copy_group]);
             break;
-        case 1: // removing original
+        case 1: // removing original (and attached files)
             /** @var DocumentableComponent $docsvc */
             $docsvc = \Yii::$app->documentable;
-            $docsvc->deleteFile($this->url_master);
             // delete the thumbnail if available
             if ($this->url_thumb
             && ($this->url_thumb != $this->url_master)) {
                 $docsvc->deleteFile($this->url_thumb);
             }
+
+            $docsvc->deleteFile($this->url_master);
             break;
         default:
         }
@@ -236,45 +237,36 @@ class Document extends ActiveRecord
     //=== AWS S3
     /**
      * get presigned url valid for the next 10 minutes
-     * @param bool $returnsMaster true for master | false for thumbnail
+     * @param bool $returnMaster true for master | false for thumbnail
      * @return ???
      */
-    public function getS3Url($returnsMaster = true)
+    public function getURI($returnMaster = true)
     {
-        $s3FileId = $returnsMaster ? $this->url_master : $this->url_thumb;
-        if ($s3FileId == null) {
+        $filename = $returnMaster ? $this->url_master : $this->url_thumb;
+        if ($filename == null) {
             return null;
         }
         /** @var S3Client $s3 */
         /** @var DocumentableComponent $docsvc */
         $docsvc = \Yii::$app->documentable;
-        return $docsvc->getURI($s3FileId);
+        return $docsvc->getURI($filename);
     }
 
     /**
      * getS3Object
      * returns the complete object
+     * @param bool $returnMaster true for master | false for thumbnail
      */
-    public function getS3Object($returnsMaster = true)
+    public function getObject($returnMaster = true)
     {
-        $s3FileId = $returnsMaster ? $this->url_master : $this->url_thumb;
-        if ($s3FileId == null) {
+        $filename = $returnMaster ? $this->url_master : $this->url_thumb;
+        if ($filename == null) {
             return null;
         }
         /** @var S3Client $s3 */
-        $s3 = Yii::$app->documentable->s3;
-
-        $config = [
-            'Bucket' => \Yii::$app->documentable->s3_bucket_name,
-            'Key' => ($s3FileId),
-        ];
-
-        //Creating a presigned URL
-        $result = $s3->getObject($config);
-
-        // Display the object in the browser.
-        //header("Content-Type: {$result['ContentType']}");
-        return $result['Body'];
+        /** @var DocumentableComponent $docsvc */
+        $docsvc = \Yii::$app->documentable;
+        return $docsvc->getObject($filename, $this->mimetype);
     }
 
     /**
@@ -358,137 +350,121 @@ class Document extends ActiveRecord
     }
 
     /**
-     * helper 1x file only
-     * upload File For a given model
+     * uploads one file either from
+     * - an Http Request via UploadedFile
+     * - or for Console uploads directly
+     * uploads a File to a given model
      * - handle zips
-     * @param UploadedFile $file
+     * @param UploadedFile|string $file (UploadeFile or path to file)
      * @param ActiveRecord $model
      * @param array $options
      */
     public static function uploadFileForModel($file, $model, $options = [])
     {
-        $filename = "/tmp/{$file->baseName}.{$file->extension}";
-        $file->saveAs($filename); // guzzle the file
+        /** @var DocumentableComponent $docsvc */
+        $docsvc = \Yii::$app->documentable;
+
+        $path = null;
+        $mimetype = null;
+        if (is_string($file)) {
+            // filesystem direct copy
+            $filename = pathinfo($file, PATHINFO_BASENAME);
+            $path = "{$docsvc->fs_path_tmp}/{$filename}";
+            // make a copy of the file to upload to the temp folder
+            // so that the original doesn't get deleted after upload
+            copy($file, $path);
+            $mimetype = FileHelper::getMimeType($path);
+        } else {
+            // UploadedFile (Yii2 object)
+            $path = "{$docsvc->fs_path_tmp}/{$file->baseName}.{$file->extension}";
+            $mimetype = $file->type;
+            $file->saveAs($path); // guzzle the file
+        }
 
         $rel_type_tag = $options['tag'] ?? null;
 
-        // ZIP?
+        // do we unzip a zipped file?
         $acceptedZipTypes = ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip', 'application/x-compressed'];
         $unzip = $options['unzip'] ?? false;
-        if (($unzip !== false)
-            && in_array($file->type, $acceptedZipTypes)
-        ) {
-            // unzip and if unzip is an array, use the array to filter the mimetypes to extract
-            // if true extract all
-            $zip = new \ZipArchive();
-            $res = $zip->open($filename);
-            // save files to process in order
-            if ($res === true) {
-                // Unzip the Archive.zip and upload it to s3
-                $zipBasePath = '/tmp/unzip';
-                $zip->extractTo($zipBasePath);
-                $unzipFiles = [];
-                for ($i = 0; $i < $zip->numFiles; $i++) {
-                    // loop through the archive
-                    $stat = $zip->statIndex($i);
-                    $filepath = "{$zipBasePath}/{$stat['name']}"; // "setA/a.txt"
-                    $filesize = $stat['size'];
-                    $mimetype = mime_content_type($filepath); // text/plain
-                    if (($filesize > 0)
-                        && ((true === $unzip) || (is_array($unzip) && in_array($mimetype, $unzip)))
-                    ) {
-                        $unzipFiles[$filepath] = [
-                            // 'filepath' => $filepath,
-                            'filesize' => $filesize,
-                            'mimetype' => $mimetype
-                        ];
-                    }
-                }
-                // now sort the files alphabetically
-                ksort($unzipFiles, SORT_ASC);
-                // and finally save them
-                foreach ($unzipFiles as $filepath => $uzf) {
-                    // Extractable file, (not directory)
-                    $extension = pathinfo($filepath, PATHINFO_EXTENSION); // txt
-                    $basename = pathinfo($filepath, PATHINFO_FILENAME); // a
-                    self::_uploadFile(
-                        $filepath,
-                        $uzf['mimetype'],
-                        $model->id,
-                        $model->tableName(),
-                        $rel_type_tag,
-                        $options // options
-                    );
-                }
-                // delete zip folder
-                FileHelper::removeDirectory($zipBasePath);
-                //rmdir($zipBasePath);
-            }
-            // delete zip file
-            // as it won't be done after upload by _uploadFile
-            FileHelper::unlink($filename);
+        if ((false === $unzip) || !in_array($file->type, $acceptedZipTypes)) {
+            // simple single file
+            // not a zip
+            self::_uploadFile(
+                $path,
+                $mimetype,
+                $model->id,
+                $model->tableName(),
+                $rel_type_tag,
+                $options
+            );
             return;
         }
 
-        // not a zip
-        self::_uploadFile(
-            $filename,
-            $file->type,
-            $model->id,
-            $model->tableName(),
-            $rel_type_tag,
-            $options
-        );
-
-        // self::uploadFile($file, $model->id, $model->tableName(), $rel_type_tag, $options);
-    }
-
-    /**
-     * For Console uploads to bucket (and fixtures)
-     * @see DocumentableBehavior::uploadFile()
-     * @param string $path
-     * @param ActiveRecord $model
-     * @param array $options
-     */
-    public static function uploadFSFileForModel($path, $model, $options = [])
-    {
-        $path_parts = pathinfo($path);
-        $tempPath = "/tmp/{$path_parts['basename']}"; // use temp to avoid deletion after upload
-        if ($path !== $tempPath) {
-            copy($path, $tempPath);
+        // unzip and if unzip is an array, use the array to filter the mimetypes to extract
+        // if true extract all
+        $zip = new \ZipArchive();
+        $res = $zip->open($path);
+        // save files to process in order
+        if ($res === true) {
+            // Unzip the Archive.zip and upload it to s3
+            $zipBasePath = "{$docsvc->fs_path_tmp}/unzip";
+            $zip->extractTo($zipBasePath);
+            $unzipFiles = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                // loop through the archive
+                $stat = $zip->statIndex($i);
+                $filepath = "{$zipBasePath}/{$stat['name']}"; // "setA/a.txt"
+                $filesize = $stat['size'];
+                $mimetype = mime_content_type($filepath); // text/plain
+                if (($filesize > 0)
+                && ((true === $unzip) || (is_array($unzip) && in_array($mimetype, $unzip)))
+                ) {
+                    $unzipFiles[$filepath] = $mimetype;
+                }
+            }
+            // now sort the files alphabetically
+            ksort($unzipFiles, SORT_ASC);
+            // and finally save them
+            foreach ($unzipFiles as $filepath => $mimetype) {
+                // Extractable file, (not directory)
+                self::_uploadFile(
+                    $filepath,
+                    $mimetype,
+                    $model->id,
+                    $model->tableName(),
+                    $rel_type_tag,
+                    $options // options
+                );
+            }
+            // delete zip folder
+            FileHelper::removeDirectory($zipBasePath);
+            //rmdir($zipBasePath);
         }
-        self::_uploadFile(
-            $tempPath, // path in FS
-            $path_parts['filename'], // no path no extension
-            $path_parts['extension'],
-            FileHelper::getMimeType($path),
-            filesize($path),
-            $model->id,
-            $model->tableName(),
-            $options['tag'] ?? null,
-            $options
-        );
+        // delete zip file
+        // as it won't be done after upload by _uploadFile
+        FileHelper::unlink($path);
     }
 
     /**
-     * copy to model (to use S3 copy see <https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectUsingPHP.html>)
-     * this fucntion allows copying to non Documentable models, @see DocumentableBehavior::copyDocs()
+     * copy to model
+     * this function allows copying to non-Documentable models, @see DocumentableBehavior::copyDocs()
+     * it only creates a new Document and specifies a copy_group for all Documents pointing to the same real file
      * @param ActiveRecord $model
-     * @param String $attribute name
+     * @param String $prop name
      */
-    public function copyToModel($model, $attribute = null)
+    public function copyToModel($model, $prop = null)
     {
-        //if $model
+        // if this is not a copied model, create a copy group
         if (null == $this->copy_group) {
             $this->copy_group = $this->id;
             $this->save(false);
         }
         $newDoc = clone $this;
-        $newDoc->rel_type_tag = $attribute ?? $this->rel_type_tag;
+        $newDoc->rel_type_tag = $prop ?? $this->rel_type_tag; // reuse original tag if not specified
         $newDoc->rel_table = $model->tableName();
         $newDoc->rel_id = $model->id;
         $newDoc->id = null;
-        $newDoc->isNewRecord = true;
+        $newDoc->isNewRecord = true; // assign a new id
         $newDoc->copy_group = $this->copy_group; // copy the group
         $newDoc->save(false);
         return $newDoc;
