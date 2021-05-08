@@ -154,10 +154,10 @@ class Document extends ActiveRecord
             /** @var DocumentableComponent $docsvc */
             $docsvc = \Yii::$app->documentable;
             $docsvc->deleteFile($this->url_master);
-            // delte the thumbnail if available
+            // delete the thumbnail if available
             if ($this->url_thumb
             && ($this->url_thumb != $this->url_master)) {
-                $docsvc->deleteFile($this->url_master);
+                $docsvc->deleteFile($this->url_thumb);
             }
             break;
         default:
@@ -246,19 +246,9 @@ class Document extends ActiveRecord
             return null;
         }
         /** @var S3Client $s3 */
-        $s3 = \Yii::$app->documentable->s3;
-        //Creating a presigned URL
-        $cmd = $s3->getCommand('GetObject', [
-            'Bucket' => Yii::$app->documentable->s3_bucket_name,
-            'Key' => ($s3FileId),
-        ]);
-
-        $request = $s3->createPresignedRequest($cmd, '+20 minutes');
-
-        // Get the actual presigned-url
-        $presignedUrl = (string) $request->getUri();
-
-        return $presignedUrl;
+        /** @var DocumentableComponent $docsvc */
+        $docsvc = \Yii::$app->documentable;
+        return $docsvc->getURI($s3FileId);
     }
 
     /**
@@ -306,10 +296,7 @@ class Document extends ActiveRecord
      */
     private static function _uploadFile(
         $filepath,
-        $basename,
-        $extension,
         $mimetype,
-        $filesize,
         $relId,
         $relType,
         $relTag,
@@ -317,49 +304,47 @@ class Document extends ActiveRecord
     ) {
         /** @var DocumentableComponent $docsvc */
         $docsvc = \Yii::$app->documentable;
+
+        $path = \Yii::getAlias($filepath); // `/dir/file.ext`
+        $pathParts = pathinfo($path);
+        $basename = $pathParts['filename']; // `file`
+        $extension = $pathParts['extension']; // `ext`
+        $filename = $pathParts['basename']; // `file.ext`
+
         $now = time();
-        // filename is the base filename with extension (no path info attached)
-        $filename = "{$basename}.{$extension}"; // I know it stll accepts "file."
-        $hash = substr(md5("{$filename}{$now}"), 0, 8);
-        $s3Filename = "{$hash}-{$filename}";
+        $s3prefix = substr(md5("{$filename}{$now}"), 0, 8).'-';
 
-        $s3Thumbfilename = null;
+        // MASTER: process image file (if it's an image)
+        $docsvc->processImageFile($path, $mimetype);
 
-        $docsvc->processImageFile($filepath, $mimetype);
+        $filesizeFinal = filesize($path);
 
-        // THUMBNAIL: (preview) generate thumbnail and $s3Thumbfilename
-        // if svg, use the same file, continue
-        if (($options['thumbnail'] ?? false)
-        && in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
-            // find the extension, remove it, insert `.thumb`
-            // png, jpeg: generate thumbnail, use it
-            $thumbExtension = Yii::$app->params['thumbnail_type'] ?? $extension;
-            $thumbfilename = "/tmp/{$basename}_thumb.{$thumbExtension}";
-            $s3Thumbfilename = "{$hash}-{$basename}.thumb.{$thumbExtension}";
+        $thumbnailFilenameFinal = null;
 
-            // make thumbnail
-            $docsvc->processImageThumbnail($filepath, $thumbfilename, $mimetype);
-
-            // upload to bucket / FS
-            $docsvc->saveFile($s3Thumbfilename, $thumbfilename, $mimetype);
-        } elseif ($mimetype == 'image/svg+xml') {
-            // SVG MASTER = THUMBNAIL
-            $s3Thumbfilename = $s3Filename;
+        // THUMBNAIL: process/generate if it's a thumbnail-able image
+        if ($options['thumbnail'] ?? false) {
+            $thumbnailPath = $docsvc->processImageThumbnail($path, $mimetype);
+            if (false !== $thumbnailPath) {
+                // upload to bucket / FS, remove temp file
+                $thumbnailFilenameFinal = $docsvc->saveFile($thumbnailPath, $mimetype);
+            }
         }
 
-        // MASTER - upload to s3
-        // get the size after eventual compression
-        $filesizeFinal = filesize($filepath);
+        // save master file and remove temp files
+        $filenameFinal = $docsvc->saveFile($path, $mimetype);
 
-        $docsvc->saveFile($s3Filename, $filepath, $mimetype);
+        if ('image/svg+xml' == $mimetype) {
+            // thumbnail and master are the same
+            $thumbnailFilenameFinal = $filenameFinal;
+        }
 
         // Create `document`
         $model = new Document([
             'rel_table' => $relType,
             'rel_id' => $relId,
             'rel_type_tag' => $relTag,
-            'url_master' => $s3Filename, // AWS S3 key for master file
-            'url_thumb' => $s3Thumbfilename, // AWS S3 key for thumbnail file
+            'url_master' => $filenameFinal,
+            'url_thumb' => $thumbnailFilenameFinal, // AWS S3 key for thumbnail file
             'title' => $filename,
             'size' => $filesizeFinal, // in Bytes (save to be able to know how much data this user uses)
         ]);
@@ -428,10 +413,7 @@ class Document extends ActiveRecord
                     $basename = pathinfo($filepath, PATHINFO_FILENAME); // a
                     self::_uploadFile(
                         $filepath,
-                        $basename,
-                        $extension,
                         $uzf['mimetype'],
-                        $uzf['filesize'], // FS
                         $model->id,
                         $model->tableName(),
                         $rel_type_tag,
@@ -451,10 +433,7 @@ class Document extends ActiveRecord
         // not a zip
         self::_uploadFile(
             $filename,
-            $file->baseName,
-            $file->extension,
             $file->type,
-            $file->size,
             $model->id,
             $model->tableName(),
             $rel_type_tag,

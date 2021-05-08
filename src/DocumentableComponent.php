@@ -14,19 +14,30 @@ use yii\helpers\VarDumper;
  *   'documentable' => [
  *       'class' => 'pixium\documentable\DocumentableComponent',
  *       'config' => [
- *          'table' => 'document' // database table name used for docments
- *          'aws_credentials' => [ // if defined wil use s3 bucket instead of Filesystem
- *              'key' => '...',
- *              'secret' => '...'
+ *          'table_name' => 'document' // database table name used for docments
+ *          'aws_s3_config' => [ // if defined wil use s3 bucket instead of Filesystem
+ *               'bucket_name' => 'mybucket'
+ *               'version' => 'latest',
+ *               'region' => 'default',
+ *               'credentials' => [
+ *                   'key' => 'none',
+ *                   'secret' => 'none'
+ *               ],
+ *               // call docker defined localstack API endpoint for AWS services
+ *               // avoid lib curl issues on bucket-name.ENDPOINT resolution
+ *               // <https://github.com/localstack/localstack/issues/836>
+ *               'use_path_style_endpoint' => true,
  *          ],
- *          'path' => '/tmp/assets/, // path to save folder
+ *          'fs_path' => '/tmp/assets', // path to save folder
+ *          'fs_path_tmp' => '/tmp', // path to temp save folder
  *          'imageOptions' => [
  *              'max_image_size' => max image size (height or width) (default = 1920)
  *              'quality' => jpeg and webp quality (default = 72)
  *              'jpeg_quality' => jpeg quality uses quality if not set,
  *              'webp_quality' => webp quality uses quality if not set,
- *              'png_compression_level' => png compression (default = 8),
+ *              'png_compression_level' => png compression (default = 6), 1 quality - 9 small size
  *              'thumbnail' => [
+ *                  'type' => 'png' (default = null: copy from parent )
  *                  'square' => 150 (default)
  *                  'width' => 200, 'height' => 100,
  *                  'crop' => true (crop will fit the smaller edge in the defined box)
@@ -42,6 +53,9 @@ class DocumentableComponent extends Component
     const THUMBNAILABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     const RESIZABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp'];
 
+    const PNG_COMPRESSION = 6;
+    const IMG_QUALITY = 72;
+
     /** @var S3Client $s3 */
     public $s3 = null; // 'common\services\AWSComponent'
 
@@ -51,7 +65,12 @@ class DocumentableComponent extends Component
     /** @var string $$s3_bucket_name name of the bucket */
     public $s3_bucket_name = 'bucket';
 
-    /** @var string $fs_path path to upload folder */
+    /** @var string $fs_path path to upload folder
+     * the easiest way to reach your docs is to create a simlink in the {frontend|backend}/web folder:
+     *   ln -s /var/tmp ./frontend/web/tmp
+     * and enable simlink navigation in Nginx:
+     *   disable_symlinks off;
+     */
     public $fs_path = '/tmp/upload'; // path
 
     /** @var string $fs_path path to temp upload folder */
@@ -113,6 +132,9 @@ class DocumentableComponent extends Component
     {
         parent::init();
 
+        // dump($this->aws_s3_config);
+        // die;
+
         if (null !== $this->aws_s3_config) {
             if ($name = $this->aws_s3_config['bucket_name'] ?? false) {
                 $this->s3_bucket_name = $name;
@@ -142,22 +164,21 @@ class DocumentableComponent extends Component
 
     /**
      * rotate, resize and recompress file if an image and can be processed
-     * @param string $filepath
+     * @param string $path
      * @param string $mimetype
      * @return bool true if processed
      */
-    public function processImageFile($filepath, $mimetype, $imageOptions = null)
+    public function processImageFile($path, $mimetype, $imageOptions = [])
     {
         // TODO: test if imagine available
         if (!in_array($mimetype, self::RESIZABLE_MIMETYPES)) {
             return false;
         }
-        // it's an image to resize!
-        // TODO: get from imageOptions
-        $path = \Yii::getAlias($filepath);
+
+        $options = array_merge_recursive($this->imageOptions, $imageOptions);
 
         // resize
-        $max = $this->imageOptions['max_image_size'] ?? 1920;
+        $max = $options['max_image_size'] ?? 1920;
         $image = \yii\imagine\Image::resize($path, $max, $max);
 
         // re-orientate
@@ -176,13 +197,14 @@ class DocumentableComponent extends Component
 
         // save image to $filePath
         // recompress
-        $quality = $this->imageOptions['quality'] ?? 72;
+        $quality = $options['quality'] ?? self::IMG_QUALITY;
         $image->save($path, [
             'quality' => $quality,
-            'jpeg_quality' => $this->imageOptions['jpeg_quality'] ?? $quality,
-            'webp_quality' => $this->imageOptions['webp_quality'] ?? $quality,
-            'png_compression_level' => $this->imageOptions['png_compression_level'] ?? 8,
+            'jpeg_quality' => $options['jpeg_quality'] ?? $quality,
+            'webp_quality' => $options['webp_quality'] ?? $quality,
+            'png_compression_level' => $options['png_compression_level'] ?? self::PNG_COMPRESSION,
         ]);
+        return true;
     }
 
     /**
@@ -190,60 +212,76 @@ class DocumentableComponent extends Component
      * @param string $filepathIn
      * @param string $filepathOut
      * @param string $mimetype
-     * @return bool true if processed
+     * @return string|false filepath if processed
      */
-    public function processImageThumbnail($filepathIn, $filepathOut, $mimetype, $imageOptions = null)
+    public function processImageThumbnail($filepath, $mimetype = null, $imageOptions = [])
     {
+        $path = \Yii::getAlias($filepath);
+        if (null == $mimetype) {
+            $mimetype = FileHelper::getMimeType($path);
+        }
+
         // TODO: test if imagine available
         if (!in_array($mimetype, self::THUMBNAILABLE_MIMETYPES)) {
             return false;
         }
+
+        $options = array_merge_recursive($this->imageOptions, $imageOptions);
+        $thumbnailOptions = $options['thumbnail'] ?? ['square' => 150];
+
         // it's an image to resize!
         // TODO: get from imageOptions
-        $path = \Yii::getAlias($filepathIn);
+        $pathParts = pathinfo($path);
+        $basename = $pathParts['filename'];
+        // extract thumbnail options
+        $extension = $thumbnailOptions['type'] ?? $pathParts['extension']; // use forced if given, else same as original
+        $wmax = $thumbnailOptions['width'] ?? $thumbnailOptions['square'];
+        $hmax = $thumbnailOptions['height'] ?? $wmax;
+        $crop = $thumbnailOptions['crop'] ?? false;
+        $bgColor = $thumbnailOptions['background_color'] ?? '000';
+        $bgAlpha = $thumbnailOptions['background_alpha'] ?? 0;
+        $thumbnailPath = "{$this->fs_path_tmp}/{$basename}.thumb.{$extension}";
 
         // resize
-        $thumbnailSize = $this->imageOptions['thumbnail_size'] ?? ['square' => 150];
-        $wmax = $thumbnailSize['width'] ?? $thumbnailSize['square'];
-        $hmax = $thumbnailSize['height'] ?? $thumbnailSize['square'];
-        $crop = $thumbnailSize['crop'] ?? false;
-        $bgColor = $thumbnailSize['background_color'] ?? '000';
-        $bgAlpha = $thumbnailSize['background_alpha'] ?? 0;
-
-        $quality = $this->imageOptions['quality'] ?? 72;
-
+        $quality = $imageOptions['quality'] ?? self::IMG_QUALITY;
         \yii\imagine\Image::$thumbnailBackgroundColor = $bgColor;
         \yii\imagine\Image::$thumbnailBackgroundAlpha = $bgAlpha;
         \yii\imagine\Image::thumbnail(
-            $filepathIn,
+            $path,
             $wmax,
             $hmax,
-            //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND // crop
+            //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND = crop
             $crop ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND : \Imagine\Image\ImageInterface::THUMBNAIL_INSET,
-        )->save($filepathOut, [
-            'jpeg_quality' => $this->imageOptions['jpeg_quality'] ?? $quality,
-            'webp_quality' => $this->imageOptions['webp_quality'] ?? $quality,
-            'png_compression_level' => $this->imageOptions['png_compression_level'] ?? 8,
+        )->save($thumbnailPath, [
+            'jpeg_quality' => $imageOptions['jpeg_quality'] ?? $quality,
+            'webp_quality' => $imageOptions['webp_quality'] ?? $quality,
+            'png_compression_level' => $imageOptions['png_compression_level'] ?? self::PNG_COMPRESSION,
         ]);
+        return $thumbnailPath;
     }
 
     /**
      * saves file on FS or S3
-     * @param string $filename target (e.g. cca3dfd5-lasagna5.jpg)
      * @param string $filepath src (path to file)
      * @param string $mimetype
+     * @return string filename used
      */
-    public function saveFile($filename, $filepath, $mimetype = null)
+    public function saveFile($path, $mimetype = null)
     {
+        $filename = pathinfo($path, PATHINFO_BASENAME);
         if (null !== $this->s3) {
             // move it to the S3 bucket
+            $now = time();
+            $s3prefix = substr(md5("{$filename}{$now}"), 0, 8).'-';
+            $s3filename = "{$s3prefix}{$filename}";
+
             $s3FileOptions = [
                 'Bucket' => $this->s3_bucket_name,
-                'Key' => $filename
+                'Key' => $s3filename
             ];
 
             $result = $this->s3->putObject(array_merge($s3FileOptions, [
-                'SourceFile' => $filepath,
+                'SourceFile' => $path,
                 // needed for SVGs
                 'ContentType' => $mimetype,
                 'Metadata' => [
@@ -253,30 +291,56 @@ class DocumentableComponent extends Component
             // poll object until it is accessible
             $this->s3->waitUntil('ObjectExists', $s3FileOptions);
             // ERASE tmp thumbnail file
-            FileHelper::unlink($filepath);
-            return true;
+            FileHelper::unlink($path);
+            return $s3filename;
         }
         // FS move
-        rename($filepath, "{$this->fs_path}/{$filename}");
+        rename($path, "{$this->fs_path}/{$filename}");
+        return $filename;
+    }
+
+    /**
+     * delete file, if not found ignore
+     * @param string $filename target (e.g. cca3dfd5-lasagna5.jpg)
+     * @return bool true if deleted
+     */
+    public function deleteFile($filename)
+    {
+        try {
+            if (null !== $this->s3) {
+                $cmd = $this->s3->deleteObject([
+                    'Bucket' => $this->s3_bucket_name,
+                    'Key' => $filename,
+                    // 'VersionId' => 'string',
+                ]);
+            } else {
+                //FS
+                $path = "{$this->fs_path}/{$filename}";
+                FileHelper::unlink($path);
+            }
+        } catch (Exception $e) {
+            return false;
+        }
         return true;
     }
 
     /**
-     * delete file
-     * @param string $filename target (e.g. cca3dfd5-lasagna5.jpg)
+     *
      */
-    public function deleteFile($filename)
+    public function getURI($filename, $options = [])
     {
         if (null !== $this->s3) {
-            $cmd = $this->s3->deleteObject([
+            $cmd = $this->s3->getCommand('GetObject', [
                 'Bucket' => $this->s3_bucket_name,
                 'Key' => $filename,
-                // 'VersionId' => 'string',
             ]);
-        } else {
-            //FS
-            $filepath = "{$this->fs_path}/{$filename}";
-            FileHelper::unlink($filepath);
+
+            $request = $this->s3->createPresignedRequest($cmd, '+20 minutes');
+
+            // Get the actual presigned-url
+            return (string) $request->getUri();
         }
+        // USE FS
+        return "{$this->fs_path}/{$filename}";
     }
 }

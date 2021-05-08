@@ -97,7 +97,8 @@ class DocumentableBehavior extends Behavior
             if (!$multiple && !empty($files)) {
                 // for unique attachments, clear Documents of given tag first
                 // clear only if new documents are given (think of the update scenario)
-                Document::deleteForModel($model, $options);
+                $this->deleteDocs($prop);
+                // Document::deleteForModel($model, $options);
             }
 
             if (!is_array($files)) {
