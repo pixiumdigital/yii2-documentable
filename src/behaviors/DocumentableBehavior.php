@@ -6,14 +6,21 @@ use \yii\db\ActiveRecord;
 use \yii\base\Behavior;
 use \pixium\documentable\models\Document;
 use yii\helpers\Html;
+use yii\web\UploadedFile;
 
 /**
+ * DocumentableBehaviour allows attaching one or multiple documents to a model attribute
+ * the model the document is attached to is specified by:
+ * - table_name
+ * - model_id and,
+ * - rel_type_tag (this to be able to group documents for one model type think AVATAR_IMG, RESUME, BEST_PICS)
+ *
  * add to Model
  *   [
  *      'class' => pixium\documentable\behaviors\DocumentableBehavior::className(),
  *      'filter' => [
- *          'attribute1' => [
- *            'tag' => 'AVATAR',            // relation_type_tag in document (if not specified attribute1 will be used)
+ *          'attribute1' => [ // the property name is the default tag
+ *            'tag' => 'AVATAR',            // relation_type_tag in document (if not specified `attribute1` will be used)
  *            'multiple' =>  false,         // true, false accept multiple uploads
  *            'replace' => false,           // force replace of existing images
  *            'thumbnail' => false,         // create thumbnails for images
@@ -104,7 +111,7 @@ class DocumentableBehavior extends Behavior
                 Document::uploadFileForModel(
                     $file,
                     $model,
-                    $options['tag'] ?? $prop, // use property if no tag defined
+                    $options['tag'] ?? $prop,
                     $options
                 );
                 if (!$multiple) {
@@ -205,5 +212,22 @@ class DocumentableBehavior extends Behavior
             /** @var Document $doc */
             $doc->delete();
         }
+    }
+
+    /**
+     * uploadFile
+     * @param string $prop
+     * @param UploadedFile|string File or path to file
+     */
+    public function uploadFile($prop, $fileOrPath, $options = [])
+    {
+        $model = $this->owner;
+        $options = array_merge_recursive($this->filter[$prop], $options);
+        Document::uploadFileForModel(
+            $fileOrPath,
+            $model,
+            $options['tag'] ?? $prop,
+            $options
+        );
     }
 }

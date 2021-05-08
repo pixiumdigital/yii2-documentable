@@ -253,7 +253,7 @@ class Document extends ActiveRecord
     }
 
     /**
-     * getS3Object
+     * getObject
      * returns the complete object
      * @param bool $returnMaster true for master | false for thumbnail
      */
@@ -357,9 +357,10 @@ class Document extends ActiveRecord
      * - handle zips
      * @param UploadedFile|string $file (UploadeFile or path to file)
      * @param ActiveRecord $model
+     * @param string $tag // relation_tag
      * @param array $options
      */
-    public static function uploadFileForModel($file, $model, $options = [])
+    public static function uploadFileForModel($file, $model, $tag, $options = [])
     {
         /** @var DocumentableComponent $docsvc */
         $docsvc = \Yii::$app->documentable;
@@ -381,8 +382,6 @@ class Document extends ActiveRecord
             $file->saveAs($path); // guzzle the file
         }
 
-        $rel_type_tag = $options['tag'] ?? null;
-
         // do we unzip a zipped file?
         $acceptedZipTypes = ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip', 'application/x-compressed'];
         $unzip = $options['unzip'] ?? false;
@@ -394,7 +393,7 @@ class Document extends ActiveRecord
                 $mimetype,
                 $model->id,
                 $model->tableName(),
-                $rel_type_tag,
+                $tag,
                 $options
             );
             return;
@@ -432,7 +431,7 @@ class Document extends ActiveRecord
                     $mimetype,
                     $model->id,
                     $model->tableName(),
-                    $rel_type_tag,
+                    $tag,
                     $options // options
                 );
             }
@@ -450,9 +449,9 @@ class Document extends ActiveRecord
      * this function allows copying to non-Documentable models, @see DocumentableBehavior::copyDocs()
      * it only creates a new Document and specifies a copy_group for all Documents pointing to the same real file
      * @param ActiveRecord $model
-     * @param String $prop name
+     * @param String $tag name
      */
-    public function copyToModel($model, $prop = null)
+    public function copyToModel($model, $tag = null)
     {
         // if this is not a copied model, create a copy group
         if (null == $this->copy_group) {
@@ -460,11 +459,11 @@ class Document extends ActiveRecord
             $this->save(false);
         }
         $newDoc = clone $this;
-        $newDoc->rel_type_tag = $prop ?? $this->rel_type_tag; // reuse original tag if not specified
+        $newDoc->rel_type_tag = $tag ?? $this->rel_type_tag; // reuse original tag if not specified
         $newDoc->rel_table = $model->tableName();
         $newDoc->rel_id = $model->id;
         $newDoc->id = null;
-        $newDoc->isNewRecord = true; // assign a new id
+        $newDoc->isNewRecord = true; // assign a new
         $newDoc->copy_group = $this->copy_group; // copy the group
         $newDoc->save(false);
         return $newDoc;

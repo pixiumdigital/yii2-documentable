@@ -239,13 +239,13 @@ class DocumentableComponent extends Component
         }
 
         $options = array_merge_recursive($this->imageOptions, $imageOptions);
-        $thumbnailOptions = $options['thumbnail'] ?? ['square' => 150];
+        $thumbnailOptions = $options['thumbnail'] ?? [];
 
         $pathParts = pathinfo($path);
         $basename = $pathParts['filename'];
         // extract thumbnail options
         $extension = $thumbnailOptions['type'] ?? $pathParts['extension']; // use forced if given, else same as original
-        $wmax = $thumbnailOptions['width'] ?? $thumbnailOptions['square'];
+        $wmax = $thumbnailOptions['width'] ?? $thumbnailOptions['square'] ?? 150;
         $hmax = $thumbnailOptions['height'] ?? $wmax;
         $crop = $thumbnailOptions['crop'] ?? false;
         $bgColor = $thumbnailOptions['background_color'] ?? '000';
@@ -279,12 +279,11 @@ class DocumentableComponent extends Component
     public function saveFile($path, $mimetype = null)
     {
         $filename = pathinfo($path, PATHINFO_BASENAME);
+        $now = time();
+        $s3prefix = substr(md5("{$filename}{$now}"), 0, 8).'-';
+        $s3filename = "{$s3prefix}{$filename}";
         if (null !== $this->s3) {
             // move it to the S3 bucket
-            $now = time();
-            $s3prefix = substr(md5("{$filename}{$now}"), 0, 8).'-';
-            $s3filename = "{$s3prefix}{$filename}";
-
             $s3FileOptions = [
                 'Bucket' => $this->s3_bucket_name,
                 'Key' => $s3filename
@@ -305,8 +304,8 @@ class DocumentableComponent extends Component
             return $s3filename;
         }
         // FS move
-        rename($path, "{$this->fs_path}/{$filename}");
-        return $filename;
+        rename($path, "{$this->fs_path}/{$s3filename}");
+        return $s3filename;
     }
 
     /**

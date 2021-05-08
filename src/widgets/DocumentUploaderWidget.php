@@ -135,12 +135,12 @@ class DocumentUploaderWidget extends InputWidget
         $docs = $model->getDocs($this->attribute)->all(); // get docs for given property
         // prepare configuration for
         foreach ($docs as $doc) {
-            array_push($existingDocUrls, $doc->getS3Url());
+            array_push($existingDocUrls, $doc->getURI());
             array_push($existingDocConfigs, [
                 'key' => $doc->id, // pass the id of the document_rel to delete
                 'caption' => $doc->title,
                 'size' => $doc->size,
-                'downloadUrl' => $doc->getS3Url(true)
+                'downloadUrl' => $doc->getURI(true)
             ]);
         }
 

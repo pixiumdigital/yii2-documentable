@@ -135,7 +135,7 @@ class DocumentController extends Controller
         $id = $this->documentable->hasher::h2id($hash);
         if (null !== $id) {
             if (null !== ($doc = Document::findOne($id))) {
-                $bin = $doc->getS3Object(false);
+                $bin = $doc->getObject(false);
                 // get the mimeType dynamically
                 $finfo = new \finfo(FILEINFO_MIME_TYPE);
                 $mimeType = $finfo->buffer($bin);
