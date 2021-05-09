@@ -31,7 +31,7 @@ use yii\helpers\VarDumper;
  *          ],
  *          'fs_path' => '/tmp/assets', // path to save folder
  *          'fs_path_tmp' => '/tmp', // path to temp save folder
- *          'imageOptions' => [ // can be overwritten at DocumentableBehaviour level
+ *          'image_options' => [ // can be overwritten at DocumentableBehaviour level
  *              'max_image_size' => max image size (height or width) (default = 1920)
  *              'quality' => jpeg and webp quality (default = 85)
  *              'jpeg_quality' => jpeg quality uses quality if not set,
@@ -93,7 +93,7 @@ class DocumentableComponent extends Component
      *
      * ]
      */
-    public $imageOptions = [];
+    public $image_options = [];
 
     // unadulterated config, overwritten by reflection
     public $config = [
