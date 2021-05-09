@@ -307,7 +307,7 @@ class Document extends ActiveRecord
         $s3prefix = substr(md5("{$filename}{$now}"), 0, 8).'-';
 
         // MASTER: process image file (if it's an image)
-        $docsvc->processImageFile($path, $mimetype);
+        $docsvc->processImageFile($path, $mimetype, $options);
 
         $filesizeFinal = filesize($path);
 
@@ -315,7 +315,7 @@ class Document extends ActiveRecord
 
         // THUMBNAIL: process/generate if it's a thumbnail-able image
         if ($options['thumbnail'] ?? false) {
-            $thumbnailPath = $docsvc->processImageThumbnail($path, $mimetype);
+            $thumbnailPath = $docsvc->processImageThumbnail($path, $mimetype, $options);
             if (false !== $thumbnailPath) {
                 // upload to bucket / FS, remove temp file
                 $thumbnailFilenameFinal = $docsvc->saveFile($thumbnailPath, $mimetype);

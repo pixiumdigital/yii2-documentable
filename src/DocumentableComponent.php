@@ -31,9 +31,9 @@ use yii\helpers\VarDumper;
  *          ],
  *          'fs_path' => '/tmp/assets', // path to save folder
  *          'fs_path_tmp' => '/tmp', // path to temp save folder
- *          'imageOptions' => [
+ *          'imageOptions' => [ // can be overwritten at DocumentableBehaviour level
  *              'max_image_size' => max image size (height or width) (default = 1920)
- *              'quality' => jpeg and webp quality (default = 72)
+ *              'quality' => jpeg and webp quality (default = 85)
  *              'jpeg_quality' => jpeg quality uses quality if not set,
  *              'webp_quality' => webp quality uses quality if not set,
  *              'png_compression_level' => png compression (default = 6), 1 quality - 9 small size
@@ -57,7 +57,7 @@ class DocumentableComponent extends Component
     const RESIZABLE_MIMETYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp'];
 
     const PNG_COMPRESSION = 6;
-    const IMG_QUALITY = 72;
+    const IMG_QUALITY = 85;
 
     /** @var S3Client $s3 */
     public $s3 = null; // 'common\services\AWSComponent'
@@ -205,14 +205,26 @@ class DocumentableComponent extends Component
 
         // save image to $filePath
         // recompress
-        $quality = $options['quality'] ?? self::IMG_QUALITY;
-        $image->save($path, [
-            'quality' => $quality,
-            'jpeg_quality' => $options['jpeg_quality'] ?? $quality,
-            'webp_quality' => $options['webp_quality'] ?? $quality,
-            'png_compression_level' => $options['png_compression_level'] ?? self::PNG_COMPRESSION,
-        ]);
+        $image->save($path, $this->_getQuality($imageOptions, false));
         return true;
+    }
+
+    /**
+     * get quality for image processing
+     * @param Array $imageOptions to get the quality from
+     * @param bool $isForThumbnail
+     * @return Array Imagine rady
+     */
+    private function _getQuality($options, $isForThumbnail = false)
+    {
+        $options = array_merge_recursive($isForThumbnail ? ($this->imageOptions['thumbnail'] ?? []) : $this->imageOptions, $options);
+        $quality = $options['quality'] ?? self::IMG_QUALITY;
+        return [
+            'quality' => $quality,
+            'jpeg_quality' => ${$options}['jpeg_quality'] ?? $quality,
+            'jpeg_quality' => ${$options}['webp_quality'] ?? $quality,
+            'png_compression_level' => ${$options}['png_compression_level'] ?? intval((100 - $quality) / 10),
+        ];
     }
 
     /**
@@ -253,7 +265,6 @@ class DocumentableComponent extends Component
         $thumbnailPath = "{$this->fs_path_tmp}/{$basename}.thumb.{$extension}";
 
         // resize
-        $quality = $imageOptions['quality'] ?? self::IMG_QUALITY;
         \yii\imagine\Image::$thumbnailBackgroundColor = $bgColor;
         \yii\imagine\Image::$thumbnailBackgroundAlpha = $bgAlpha;
         \yii\imagine\Image::thumbnail(
@@ -262,11 +273,7 @@ class DocumentableComponent extends Component
             $hmax,
             //\Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND = crop
             $crop ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND : \Imagine\Image\ImageInterface::THUMBNAIL_INSET,
-        )->save($thumbnailPath, [
-            'jpeg_quality' => $imageOptions['jpeg_quality'] ?? $quality,
-            'webp_quality' => $imageOptions['webp_quality'] ?? $quality,
-            'png_compression_level' => $imageOptions['png_compression_level'] ?? self::PNG_COMPRESSION,
-        ]);
+        )->save($thumbnailPath, $this->_getQuality($imageOptions, true));
         return $thumbnailPath;
     }
 

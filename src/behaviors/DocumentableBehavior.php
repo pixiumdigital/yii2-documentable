@@ -223,6 +223,12 @@ class DocumentableBehavior extends Behavior
     {
         $model = $this->owner;
         $options = array_merge_recursive($this->filter[$prop], $options);
+        // DBG:
+        // print_r([
+        //     'dbg' => 'uploadFile',
+        //     'prop' => $prop,
+        //     'options' => $options,
+        // ]);
         Document::uploadFileForModel(
             $fileOrPath,
             $model,

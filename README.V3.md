@@ -1,14 +1,11 @@
-# Documentable
+# Documentable V3
 
 ## Important
 
 ### Changes
 
-- Release v2.x
-  Version `2.x` comes with a change of architecture. The `DocumentRel` class was merged with  `Document`
-  A migration is provided to update Document from DocumentRel and get rid of the rel table.
 - Release v3.x
-  refer to [README.V3.md](README.V3.md)
+  Now Documentable is setup as a component. The params logic moves to the component and the plugins looks automatically for an `aws` component. If not present, it will use FS.
 
 
 
@@ -29,11 +26,6 @@ Add this repository to your composer.json file
 ```
 
 Add the package to the require list
-```
-"pixium/yii2-documentable": "2.0"
-```
-
-or, for the v3 (wip)
 
 ```
 "pixium/yii2-documentable": "dev-master_v3"
@@ -41,7 +33,7 @@ or, for the v3 (wip)
 
 
 
-## Migrations 
+## Migrations
 
 Add to `config/console.php` (Yii2 basic)  or `console/main.php` (Yii2 advanced)
 
@@ -71,8 +63,6 @@ on Yii Basic:
 ./yii migrate/up -p vendor/pixium/yii2-documentable/migrations
 ```
 
-
-
 ### You already have a `document` table in your stack!
 
 > Available only with v3
@@ -92,7 +82,7 @@ on Yii Basic:
 
 ### With AWS S3 access
 
-The Documentable component now includes the s3 bucket handler directly. To use localstack set your component like this:
+The Documentable component now includes the s3 bucket handler directly. To use **localstack** set your component like this:
 
 ```php
 'documentable' => [
@@ -139,10 +129,24 @@ no bucket? You want to put it all on a FS volume?
    'documentable' => [
      'class' => 'pixium\documentable\DocumentableComponent',
      // ALT CONFIG using FILESYSTEM
-     'fs_path' => '/tmp/uploads',
+     'fs_path' => '/tmp/uploads', 
+     'fs_path_tmp' => '/tmp',
    ],
  ]
  ```
+
+how to get yii to display your images easily:
+
+The simplest way is to create a symbolic link to map the base path to the real location
+
+```sh
+# Yii2 advanced
+ln -s /tmp/uploads ${YII_ROOT}/frontend/web/tmp
+# Yii2 basic
+ln -s /tmp/uploads ${YII_ROOT}/web/tmp
+```
+
+In this example `front.app.local/tmp/uploads/1.jpg` will be mapped to `/tmp/uploads/1.jpg`
 
 
 
@@ -346,5 +350,4 @@ sudo yum install libzip-dev
 sudo service php-fpm restart
 sudo service nginx restart
 ```
-
 
