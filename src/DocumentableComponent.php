@@ -183,7 +183,7 @@ class DocumentableComponent extends Component
             return false;
         }
 
-        $options = array_merge_recursive($this->imageOptions, $imageOptions);
+        $options = array_merge_recursive($this->image_options, $imageOptions);
 
         // resize
         $max = $options['max_image_size'] ?? 1920;
@@ -217,13 +217,13 @@ class DocumentableComponent extends Component
      */
     private function _getQuality($options, $isForThumbnail = false)
     {
-        $options = array_merge_recursive($isForThumbnail ? ($this->imageOptions['thumbnail'] ?? []) : $this->imageOptions, $options);
+        $options = array_merge_recursive($isForThumbnail ? ($this->image_options['thumbnail'] ?? []) : $this->image_options, $options);
         $quality = $options['quality'] ?? self::IMG_QUALITY;
         return [
             'quality' => $quality,
-            'jpeg_quality' => ${$options}['jpeg_quality'] ?? $quality,
-            'jpeg_quality' => ${$options}['webp_quality'] ?? $quality,
-            'png_compression_level' => ${$options}['png_compression_level'] ?? intval((100 - $quality) / 10),
+            'jpeg_quality' => $options['jpeg_quality'] ?? $quality,
+            'jpeg_quality' => $options['webp_quality'] ?? $quality,
+            'png_compression_level' => $options['png_compression_level'] ?? intval((100 - $quality) / 10),
         ];
     }
 
@@ -250,7 +250,7 @@ class DocumentableComponent extends Component
             return false;
         }
 
-        $options = array_merge_recursive($this->imageOptions, $imageOptions);
+        $options = array_merge_recursive($this->image_options, $imageOptions);
         $thumbnailOptions = $options['thumbnail'] ?? [];
 
         $pathParts = pathinfo($path);
@@ -387,7 +387,7 @@ class DocumentableComponent extends Component
      */
     public function getThumbnailDefault($options = [])
     {
-        $thumbnailOptions = $this->imageOptions['thumbnail'] ?? [];
+        $thumbnailOptions = $this->image_options['thumbnail'] ?? [];
         $imgUrl = $thumbnailOptions['default'] ?? null;
         if (null != $imgUrl) {
             return Html::img($imgUrl, $options);
