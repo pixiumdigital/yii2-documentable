@@ -189,6 +189,7 @@ class DocumentUploaderWidget extends InputWidget
                 'maxFileSize' => $maxFileSize, // Kb add to params
                 // delete
                 'deleteUrl' => \yii\helpers\Url::to(['document/delete']),
+                'theme' => 'fa'
             ]),
             // events
             'pluginEvents' => $this->pluginEvents
